@@ -1,0 +1,91 @@
+# Heyelan Dijital Twin — Uygulama Katmanı
+
+Kahramanmaraş 6 Şubat 2023 depremi için fizik-tabanlı hibrit heyelan dijital
+ikizinin **3 katmanlı** profesyonel uygulaması.
+
+```
+┌──────────────┐     HTTP/JSON     ┌──────────────┐   Python   ┌──────────────┐
+│  Frontend    │ ────────────────▶ │  Backend     │ ─────────▶ │  AI Servisi  │
+│ React+Vite   │ ◀──────────────── │  FastAPI     │ ◀───────── │  (inference) │
+│ TS+Tailwind  │                   │  REST API    │            │  PINN+Fizik  │
+└──────────────┘                   └──────────────┘            └──────────────┘
+   :5173                              :8000                       model + raster
+```
+
+## Katmanlar
+
+| Katman | Dizin | Sorumluluk |
+|--------|-------|-----------|
+| **AI Servisi** | `service/` | Saf Python çıkarım — model+scaler+raster tek sefer yüklenir; HTTP bilmez |
+| **Backend** | `backend/` | FastAPI REST API — servis metotlarını uçlara açar, CORS, statik prod servis |
+| **Frontend** | `frontend/` | React SPA — 5 sayfa, dark mode varsayılan, Leaflet harita, Recharts |
+
+## Hızlı Başlangıç (geliştirme)
+
+```bash
+./run_app.sh
+```
+
+- Frontend: http://localhost:5173
+- Backend:  http://localhost:8000/api/health
+
+İlk çalıştırmada `npm install` otomatik yapılır (ağ gerekir).
+
+## Manuel Çalıştırma
+
+**Backend**
+```bash
+python3 -m uvicorn backend.main:app --reload --port 8000
+```
+
+**Frontend**
+```bash
+cd frontend
+npm install     # ilk sefer
+npm run dev
+```
+
+## Prodüksiyon (tek servis)
+
+```bash
+cd frontend && npm run build     # → frontend/dist
+cd .. && python3 -m uvicorn backend.main:app --port 8000
+```
+`backend/main.py`, `frontend/dist` varsa `/` altında servis eder; her şey tek
+portta (8000) çalışır.
+
+## API Uçları
+
+| Metod | Uç | Açıklama |
+|-------|-----|----------|
+| GET  | `/api/health` | Sağlık kontrolü |
+| GET  | `/api/lithology` | 27 litoloji sınıfı |
+| POST | `/api/predict/point` | Nokta tahmini (P, Kᵧ, Dₙ) |
+| POST | `/api/predict/critical-pga` | PGA taraması → kritik PGA |
+| GET  | `/api/map/meta` | Harita sınırları/merkez |
+| GET  | `/api/map/overlay.png` | Duyarlılık katmanı (RGBA PNG) |
+| GET  | `/api/map/point?lat=&lon=` | Koordinattan tahmin |
+| GET  | `/api/results/summary` | Test metrikleri |
+| GET  | `/api/figures/{name}` | Figürler (whitelist) |
+
+## Sayfalar
+
+1. **Genel Bakış** — proje tanıtımı, anahtar sayılar, yöntem özeti
+2. **Tahmin** — kaydırıcılarla anlık nokta tahmini + animasyonlu gösterge
+3. **Kritik PGA** — P(heyelan) vs PGA eğrisi (Recharts), kritik eşik işaretli
+4. **Harita** — Leaflet + duyarlılık overlay + tıkla-tahmin
+5. **Sonuçlar** — metrikler, figür sekmeleri, dürüst kısıt notları
+
+## Gereksinimler
+
+- Python 3 + `fastapi uvicorn pydantic rasterio torch matplotlib pillow`
+- Node ≥ 18 + npm
+
+## Bilimsel Şeffaflık
+
+- **Litoloji** Macrostrat API proxy'sidir (resmi MTA haritası değil).
+- **FEM** konturları analitik yedektir (SfePy kurulu değil); Kᵧ ve Dₙ hesapları
+  gerçektir.
+- Kritik PGA (ML ≈ 0.55 g) rijit-blok Newmark'tan daha az muhafazakârdır.
+
+> `app.py` (Streamlit) hızlı yedek demo olarak korunmuştur.

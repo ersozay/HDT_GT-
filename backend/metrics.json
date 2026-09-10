@@ -1,0 +1,19 @@
+{
+  "roc_auc": 0.963,
+  "accuracy": 0.90,
+  "recall": 0.86,
+  "precision": 0.80,
+  "f1": 0.83,
+  "critical_pga_ml": 0.55,
+  "n_samples": 89397,
+  "landslide_ratio": 0.286,
+  "n_features": 39,
+  "threshold": 0.49,
+  "shap_order": ["slope_deg", "elevation_m", "pga_g", "ky_g", "litho_id"],
+  "split": "polygon-based 3-way (train/val/test)",
+  "earthquake": "Kahramanmaraş 6 Şubat 2023 (Mw7.8 + Mw7.5)",
+  "notes": {
+    "lithology": "Macrostrat API tabanlı jeolojik birim PROXY'si (resmi MTA haritası değil).",
+    "fem": "SfePy kurulu değil; von Mises / plastik şekil değiştirme konturları analitik yedektir (temsili). Ky ve Dn hesapları gerçektir."
+  }
+}

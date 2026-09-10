@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+    @apply dark:bg-slate-950 dark:text-slate-100;
+    font-family: "Inter", system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+    @apply dark:border-slate-800 dark:bg-slate-900;
+  }
+  .input-range {
+    @apply w-full accent-brand-500;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+  }
+  .nav-link {
+    @apply rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900;
+    @apply dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white;
+  }
+  .nav-link-active {
+    @apply bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200;
+  }
+}
+
+/* Leaflet, dark temada da düzgün dursun */
+.leaflet-container {
+  @apply rounded-2xl;
+  background: #0f172a;
+}

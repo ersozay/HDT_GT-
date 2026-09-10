@@ -1,0 +1,106 @@
+{
+  "title": "Fizik-Transfer Doğrulaması — 2008 Wenchuan (Mw 7.9)",
+  "method": "Kahramanmaraş için kurulan Newmark rijit-blok fiziği (Jibson 2007 + Ambraseys & Menu 1988) Wenchuan temsili yamaç parametrelerine uygulandı. PINN yeniden eğitilmedi; bu bir fizik-transfer gösterimidir.",
+  "published": {
+    "event": "2008 Wenchuan (Çin) — Mw 7.9",
+    "landslide_count": "~197.000 (Xu ve ark. 2014; Dai ve ark. 2011)",
+    "peak_pga_g": "yakın-fayda ~1.0g (lokal >1g)",
+    "note": "Yaygın koseismik heyelan; dik yamaç + yüksek PGA bölgelerinde yoğun."
+  },
+  "dn_threshold_cm": 10.0,
+  "comparison": [
+    {
+      "pga_g": 0.2,
+      "class": "Dik / zayıf yamaç (aᵧ≈0.05g)",
+      "ky_g": 0.05,
+      "dn_jibson_cm": 6.14,
+      "dn_ambraseys_cm": 17.38,
+      "triggered_jibson": false,
+      "triggered_ambraseys": true
+    },
+    {
+      "pga_g": 0.2,
+      "class": "Orta yamaç (aᵧ≈0.15g)",
+      "ky_g": 0.15,
+      "dn_jibson_cm": 0.1,
+      "dn_ambraseys_cm": 0.33,
+      "triggered_jibson": false,
+      "triggered_ambraseys": false
+    },
+    {
+      "pga_g": 0.2,
+      "class": "Nazik / sağlam yamaç (aᵧ≈0.30g)",
+      "ky_g": 0.3,
+      "dn_jibson_cm": 0.0,
+      "dn_ambraseys_cm": 0.0,
+      "triggered_jibson": false,
+      "triggered_ambraseys": false
+    },
+    {
+      "pga_g": 0.6,
+      "class": "Dik / zayıf yamaç (aᵧ≈0.05g)",
+      "ky_g": 0.05,
+      "dn_jibson_cm": 47.69,
+      "dn_ambraseys_cm": 95.65,
+      "triggered_jibson": true,
+      "triggered_ambraseys": true
+    },
+    {
+      "pga_g": 0.6,
+      "class": "Orta yamaç (aᵧ≈0.15g)",
+      "ky_g": 0.15,
+      "dn_jibson_cm": 6.14,
+      "dn_ambraseys_cm": 17.38,
+      "triggered_jibson": false,
+      "triggered_ambraseys": true
+    },
+    {
+      "pga_g": 0.6,
+      "class": "Nazik / sağlam yamaç (aᵧ≈0.30g)",
+      "ky_g": 0.3,
+      "dn_jibson_cm": 0.88,
+      "dn_ambraseys_cm": 2.93,
+      "triggered_jibson": false,
+      "triggered_ambraseys": false
+    },
+    {
+      "pga_g": 1.0,
+      "class": "Dik / zayıf yamaç (aᵧ≈0.05g)",
+      "ky_g": 0.05,
+      "dn_jibson_cm": 108.08,
+      "dn_ambraseys_cm": 182.71,
+      "triggered_jibson": true,
+      "triggered_ambraseys": true
+    },
+    {
+      "pga_g": 1.0,
+      "class": "Orta yamaç (aᵧ≈0.15g)",
+      "ky_g": 0.15,
+      "dn_jibson_cm": 17.16,
+      "dn_ambraseys_cm": 41.64,
+      "triggered_jibson": true,
+      "triggered_ambraseys": true
+    },
+    {
+      "pga_g": 1.0,
+      "class": "Nazik / sağlam yamaç (aᵧ≈0.30g)",
+      "ky_g": 0.3,
+      "dn_jibson_cm": 4.02,
+      "dn_ambraseys_cm": 11.97,
+      "triggered_jibson": false,
+      "triggered_ambraseys": true
+    }
+  ],
+  "sources": [
+    "Dai, F.C. et al. (2011). J. Asian Earth Sciences 40(4), 883–895.",
+    "Xu, C. et al. (2014). Landslides 11, 1461–1481.",
+    "Jibson, R.W. (2007). Engineering Geology 91(2–4), 209–218.",
+    "Ambraseys, N.N. & Menu, J.M. (1988). EESD 16(7), 985–1006."
+  ],
+  "caveats": [
+    "Fizik-transfer gösterimidir; yerel saha kalibrasyonu / PINN yeniden eğitim DEĞİLDİR.",
+    "Yamaç sınıfları ve PGA aralıkları literatür-tabanlı temsili değerlerdir.",
+    "Karşılaştırma niteldir (tetiklenme eğilimi), nicel heyelan sayımı değildir.",
+    "Newmark rijit-blok varsayar; ampirik regresyonların tahmin bandı vardır."
+  ]
+}
