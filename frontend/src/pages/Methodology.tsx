@@ -230,23 +230,28 @@ export default function Methodology() {
         hint="src/pinn/model.py · LandslidePINN"
       >
         <p>
-          39 öznitelik (eğim, yükseklik, bakı, litoloji parametreleri,{" "}
-          <Sym>{"k_y"}</Sym>, PGA…) girişli, Swish aktivasyonlu ileri-beslemeli ağ:
+          37 öznitelik (eğim, yükseklik, bakı, litoloji one-hot + <Sym>{"c', \\varphi', \\gamma"}</Sym>,{" "}
+          <Sym>{"k_y"}</Sym>, <Sym>{"\\log D_n"}</Sym>, PGA) girişli, Swish aktivasyonlu ileri-beslemeli ağ:
         </p>
         <Eq note="Katman genişlikleri; çıkış sigmoid ile P(heyelan) ∈ (0,1)">
-          {String.raw`39 \rightarrow 256 \rightarrow 128 \rightarrow 64 \rightarrow 32 \rightarrow 1`}
+          {String.raw`37 \rightarrow 256 \rightarrow 128 \rightarrow 64 \rightarrow 32 \rightarrow 1`}
         </Eq>
         <p>
-          Kayıp fonksiyonu, dengesiz sınıflar için <strong>Focal Loss</strong>{" "}
-          ile mekaniğe aykırı tahminleri cezalandıran bir{" "}
-          <strong>fizik cezası</strong> teriminin toplamıdır:
+          Kayıp fonksiyonu üç terimdir: dengesiz sınıflar için <strong>Focal Loss</strong>,
+          düz ve zayıf sarsıntılı bölgede heyelan tahminini cezalandıran{" "}
+          <strong>stabilite cezası</strong> ve PINN kolokasyon noktalarına karşılık gelen{" "}
+          <strong>fizik-yolu kısıtı</strong>. Kolokasyon çiftleri (<Sym>{"x_a \\to x_b"}</Sym>)
+          PGA veya eğim küçük bir adım artırılarak üretilir; <Sym>{"k_y"}</Sym> ve{" "}
+          <Sym>{"D_n"}</Sym> Mohr–Coulomb + Jibson (2007) ile yeniden hesaplanır.
+          Model bu yol boyunca olasılığı düşürürse cezalandırılır:
         </p>
-        <Eq note="α=0.5 (azınlık heyelan sınıfı için), γ=2 odak parametresi; λ fizik ağırlığı">
-          {String.raw`\mathcal{L} = \underbrace{-\alpha\,(1-p_t)^{\gamma}\log p_t}_{\text{Focal}} + \lambda\,\underbrace{\mathcal{L}_{\text{fizik}}}_{k_y\text{–PGA tutarlılığı}}`}
+        <Eq note="α=0.5, γ=2; λ_s doğrusal artar (1→5); λ_m = 12. Kolokasyon PGA'ları 0.02–1.30 g aralığından örneklenir">
+          {String.raw`\mathcal{L} = \underbrace{-\alpha\,(1-p_t)^{\gamma}\log p_t}_{\text{Focal}} + \lambda_s\,\mathcal{L}_{\text{stabilite}} + \lambda_m\,\underbrace{\overline{\operatorname{ReLU}\big(P(x_a)-P(x_b)\big)}}_{\text{PGA}\uparrow,\ \theta\uparrow\ \Rightarrow\ P\not\downarrow}`}
         </Eq>
         <p>
-          Karar eşiği, doğrulama kümesinde <Sym>{"F_1"}</Sym> maksimize edilerek
-          seçilir (<Sym>{"\\approx 0.49"}</Sym>).
+          Değerlendirme <strong>mekânsal blok çapraz doğrulama</strong> ile yapılır
+          (0.25° bloklar; komşu heyelanlar eğitim ve teste bölünmez). Karar eşiği
+          doğrulama bloklarında <Sym>{"F_1"}</Sym> maksimize edilerek seçilir.
         </p>
       </Section>
 
@@ -266,7 +271,12 @@ export default function Methodology() {
         <p>
           Paralelde, aynı şev için Newmark <Sym>{"D_n=10\\,\\text{cm}"}</Sym>{" "}
           eşiğini veren PGA, fiziksel karşılaştırma eğrisi olarak çizilir
-          (bkz. <span className="font-medium">Kritik PGA</span> sayfası).
+          (bkz. <span className="font-medium">Kritik PGA</span> sayfası). Bölgesel
+          sonuçta τ = 0.5 kullanılır ve belirsizlik 6 modelden (nihai + 5 CV katı)
+          raporlanır. <Sym>{"\\tau = 0.5"}</Sym> eşiği negatif örnekleme oranına
+          bağlı olduğundan, örneklemeden bağımsız <strong>başlangıç</strong> tanımı da verilir:
+          olabilirlik oranı <Sym>{"LR = \\tfrac{P}{1-P}\\cdot\\tfrac{N_{neg}}{N_{poz}} = 1"}</Sym>,
+          yani Frekans Oranı yönteminin olasılıksal karşılığı.
         </p>
       </Section>
 
@@ -281,9 +291,15 @@ export default function Methodology() {
             MTA jeoloji haritası değildir. Kohezyon/sürtünme değerleri sınıf-ortalamasıdır.
           </li>
           <li>
-            <strong>FEM analitik yedektir</strong>: SfePy kurulu olmadığından
-            gerilme alanı, Mohr–Coulomb + Newmark ile analitik hesaplanır;
-            von-Mises/plastik konturlar sentetiktir.
+            <strong>FEM 2B idealize kesittir</strong>: Griffiths &amp; Lane (1999)
+            elasto-viskoplastik SSR çözücüsü pilot eğim/litolojiyle H = 20 m'lik
+            bir şev kesitinde çalışır; gerçek pilot topoğrafyası ve dinamik
+            zaman-tanım analizi değildir (psödo-statik <Sym>{"k_h"}</Sym>).
+          </li>
+          <li>
+            <strong>Kritik PGA (τ = 0.5) örnekleme tasarımına duyarlıdır</strong>:
+            negatif/pozitif oranı 1–1.5 iken ≈ 0.25 g, 2.5 iken ≈ 0.44 g
+            bulunur; AUC değişmez. Değer aralığıyla birlikte raporlanmalıdır.
           </li>
           <li>
             Newmark <strong>rijit-blok</strong> varsayar (iç deformasyon yok) —

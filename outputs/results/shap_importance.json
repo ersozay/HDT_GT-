@@ -1,0 +1,13 @@
+{
+  "slope_deg": 0.11717,
+  "pga_g": 0.10167,
+  "elevation_m": 0.08841,
+  "litoloji (one-hot toplam)": 0.05985,
+  "ky_g": 0.0433,
+  "aspect_cos": 0.02341,
+  "unit_weight": 0.01234,
+  "friction_deg": 0.01099,
+  "cohesion_kpa": 0.00826,
+  "log_dn_cm": 0.00715,
+  "aspect_sin": 0.00637
+}

@@ -1,8 +1,18 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import MetricCard from "../components/MetricCard";
 import { Card, CardTitle } from "../components/Card";
+import { api, Summary } from "../api/client";
 
 export default function Overview() {
+  const [s, setS] = useState<Summary | null>(null);
+  useEffect(() => {
+    api.summary().then(setS).catch(() => {});
+  }, []);
+  const auc = s?.cv?.roc_auc?.mean ?? s?.roc_auc;
+  const crit = s?.critical_pga_ml;
+  const rng = (s as (Summary & { critical_pga?: { ensemble_range_g?: [number, number] } }) | null)
+    ?.critical_pga?.ensemble_range_g;
   return (
     <div className="space-y-8">
       {/* Hero */}
@@ -45,28 +55,28 @@ export default function Overview() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             label="Kritik PGA (ML)"
-            value="0.55"
+            value={crit != null ? crit.toFixed(2) : "…"}
             unit="g"
             accent="amber"
-            sub="Heyelan tetiklenme eşiği"
+            sub={rng ? `Belirsizlik ${rng[0].toFixed(2)}–${rng[1].toFixed(2)} g · en dik %5 yamaç` : "Heyelan tetiklenme eşiği"}
           />
           <MetricCard
             label="ROC–AUC"
-            value="0.96"
+            value={auc != null ? auc.toFixed(3) : "…"}
             accent="brand"
-            sub="Test kümesi ayırt ediciliği"
+            sub="Mekânsal blok CV (5 kat)"
           />
           <MetricCard
-            label="Duyarlılık (Recall)"
-            value="0.86"
+            label="Fizik tutarlılığı"
+            value={s?.mono_violation_rate != null ? `%${(100 * (1 - s.mono_violation_rate)).toFixed(1)}` : "…"}
             accent="emerald"
-            sub="Yakalanan gerçek heyelanlar"
+            sub="PGA ↑ ⇒ olasılık düşmeyen örnek oranı"
           />
           <MetricCard
             label="Örnek Sayısı"
-            value="89.4K"
+            value={s ? `${(s.n_samples / 1000).toFixed(1)}K` : "…"}
             accent="sky"
-            sub="%28.6 heyelan · 39 öznitelik"
+            sub={s ? `%${(100 * s.landslide_ratio).toFixed(1)} heyelan · ${s.n_features} öznitelik` : ""}
           />
         </div>
       </section>
@@ -90,9 +100,10 @@ export default function Overview() {
             2 · PINN Modeli
           </CardTitle>
           <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-            256→128→64→32→1 mimarili ağ, eğim/yükseklik/bakı/litoloji/PGA gibi 39
-            öznitelikten heyelan olasılığını öğrenir. Kayıp fonksiyonu fizik
-            cezasıyla düzenlenerek fiziksel tutarlılık korunur.
+            256→128→64→32→1 mimarili ağ, eğim/yükseklik/bakı/litoloji/PGA ve
+            fizikten türetilen Kᵧ, Dₙ dahil {s?.n_features ?? 37} öznitelikten heyelan
+            olasılığını öğrenir. Fizik-yolu kısıtı, PGA veya eğim arttıkça olasılığın
+            düşmemesini kayıp fonksiyonu içinde zorunlu kılar.
           </p>
         </Card>
         <Card>

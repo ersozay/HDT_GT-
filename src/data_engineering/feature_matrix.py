@@ -35,7 +35,26 @@ FEATURE_COLUMNS = [
 
 LITHO_ONEHOT_COLS = [f"litho_{i}" for i in range(1, 28)]  # litho_1 ... litho_27
 
+# v1 modelinin (Temmuz 2026) girdi listesi — eski checkpoint'lerle uyum için korunur.
 ALL_FEATURE_COLUMNS = FEATURE_COLUMNS + LITHO_ONEHOT_COLS
+
+# v2 model girdileri. v1'e göre farklar:
+#   - litho_id çıkarıldı: kategorik sınıfı sayısal (ordinal) vermek anlamsızdır;
+#     litoloji one-hot + c', φ', γ ile zaten temsil edilir.
+#   - pore_pressure_kpa çıkarıldı: kuru koşulda tüm örneklerde sabit 0'dır.
+#   - dn_cm → log_dn_cm: Dn 0–1000 cm aralığında aşırı çarpıktır; log10(Dn+0.1)
+#     sinir ağı için iyi koşullanmış bir girdidir (Jibson 2007 de log-uzayda).
+MODEL_FEATURES = [
+    "elevation_m", "slope_deg", "aspect_sin", "aspect_cos",
+    "cohesion_kpa", "friction_deg", "unit_weight",
+    "pga_g", "ky_g", "log_dn_cm",
+] + LITHO_ONEHOT_COLS
+
+# Fizik kısıtlarında kullanılan öznitelikler ve beklenen monoton yön:
+#   +1 → P(heyelan) bu öznitelikle artmalı, −1 → azalmalı.
+MONOTONE_FEATURES = {"pga_g": +1, "log_dn_cm": +1, "slope_deg": +1, "ky_g": -1}
+
+DN_LOG_OFFSET_CM = 0.1
 
 
 def build_feature_matrix(
@@ -111,6 +130,7 @@ def build_feature_matrix(
         "pga_g":            pga_f,
         "ky_g":             ky,
         "dn_cm":            dn_cm,
+        "log_dn_cm":        np.log10(dn_cm + DN_LOG_OFFSET_CM),
         "litho_id":         litho_f,
     }
 
@@ -123,6 +143,19 @@ def build_feature_matrix(
         feat_cols = FEATURE_COLUMNS + LITHO_ONEHOT_COLS
 
     return df, feat_cols
+
+
+def ensure_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Eski (v1) parquet dosyalarına v2 türetilmiş sütunlarını ekler."""
+    if "log_dn_cm" not in df.columns and "dn_cm" in df.columns:
+        df = df.copy()
+        df["log_dn_cm"] = np.log10(df["dn_cm"].to_numpy(float) + DN_LOG_OFFSET_CM)
+    return df
+
+
+def load_feature_table(path) -> pd.DataFrame:
+    """Eğitim öznitelik tablosunu (parquet) yükler ve v2 sütunlarını garanti eder."""
+    return ensure_derived_columns(pd.read_parquet(path))
 
 
 def add_morphometric_features(

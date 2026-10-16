@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import io
 import json
-import pickle
 import threading
 from functools import lru_cache
 from pathlib import Path
@@ -38,7 +37,7 @@ from config import (
 from src.geomechanics.lithology import LITHOLOGY_TABLE
 from src.geomechanics.mohr_coulomb import StaticFS, CriticalAcceleration
 from src.geomechanics.newmark import NewmarkDisplacement
-from src.data_engineering.feature_matrix import build_feature_matrix, ALL_FEATURE_COLUMNS
+from src.data_engineering.feature_matrix import build_feature_matrix
 
 SLOPE_RASTER = DATA_PROCESSED / "slope_deg.tif"
 ASPECT_RASTER = DATA_PROCESSED / "aspect_deg.tif"
@@ -51,32 +50,24 @@ class LandslideModel:
 
     def __init__(self):
         import torch
-        from src.pinn.model import LandslidePINN
+        from src.pinn.io import load_checkpoint
 
         self._torch = torch
         self._lock = threading.Lock()
 
-        # --- Model + ölçekleyici + eşik ---
-        self.scaler = pickle.loads((MODELS_DIR / "scaler.pkl").read_bytes())
-        ckpt = torch.load(MODELS_DIR / "best_model.pt", map_location="cpu")
-        self.n_features = int(ckpt["model_state"]["layer1.0.weight"].shape[1])
-        self.epoch = int(ckpt.get("epoch", -1))
-        self.val_auc = float(ckpt.get("val_auc", 0.0))
-
-        self.model = LandslidePINN(in_features=self.n_features)
-        self.model.load_state_dict(ckpt["model_state"])
-        self.model.eval()
-
-        thr_path = MODELS_DIR / "threshold.json"
-        self.threshold = 0.5
-        if thr_path.exists():
-            self.threshold = float(
-                json.loads(thr_path.read_text()).get("decision_threshold", 0.5)
-            )
-
-        self._feat_cols = [c for c in ALL_FEATURE_COLUMNS]
-        self._mean = np.asarray(self.scaler["mean"], dtype=np.float32)
-        self._std = np.asarray(self.scaler["std"], dtype=np.float32)
+        # --- Model + ölçekleyici + eşik (v2 checkpoint'i hepsini içerir) ---
+        lm = load_checkpoint(MODELS_DIR / "best_model.pt",
+                             scaler_path=MODELS_DIR / "scaler.pkl",
+                             threshold_path=MODELS_DIR / "threshold.json")
+        self.model = lm.model
+        self.n_features = len(lm.feat_cols)
+        self.epoch = int(lm.meta.get("epoch", -1))
+        self.val_auc = float(lm.meta.get("val_auc", 0.0))
+        self.model_version = str(lm.meta.get("model_version", "pinn_v1"))
+        self.threshold = lm.threshold
+        self._feat_cols = lm.feat_cols
+        self._mean = lm.mean
+        self._std = lm.std
 
         self._overlay_cache: bytes | None = None
         self._litho_overlay_cache: bytes | None = None
@@ -96,8 +87,7 @@ class LandslideModel:
             litho_array=np.array([[int(litho_id)]]), pga_array=a(pga),
             u_array=None, z_ref=z_ref, include_onehot=True,
         )
-        cols = [c for c in self._feat_cols if c in df.columns]
-        X = df[cols].values.astype(np.float32)
+        X = df[self._feat_cols].values.astype(np.float32)
         return df, X
 
     def predict_point(self, *, slope, elevation, aspect, litho_id, pga, z_ref=Z_REF_M) -> dict:
@@ -121,19 +111,21 @@ class LandslideModel:
     def critical_pga(self, *, slope, elevation, aspect=180, litho_id,
                      pga_min=0.05, pga_max=1.50, step=0.05, z_ref=Z_REF_M) -> dict:
         """PGA taraması: her PGA için P(heyelan) ve kritik eşik (P≥threshold)."""
+        from src.evaluation.metrics import critical_pga_from_curve
         torch = self._torch
         grid = np.round(np.arange(pga_min, pga_max + 1e-9, step), 3)
-        probs, dns = [], []
-        for pg in grid:
-            df, X = self._features(slope, elevation, aspect, litho_id, float(pg), z_ref)
-            Xn = (X - self._mean) / self._std
-            with self._lock, torch.no_grad():
-                p = float(self.model(torch.tensor(Xn, dtype=torch.float32)).numpy().ravel()[0])
-            probs.append(p)
-            dns.append(float(df["dn_cm"].iloc[0]))
-        probs = np.array(probs)
-        over = np.where(probs >= self.threshold)[0]
-        crit = float(grid[over[0]]) if len(over) else None
+        n = len(grid)
+        full = lambda v: np.full((1, n), v, dtype=float)
+        df, _ = build_feature_matrix(
+            elevation_m=full(elevation), slope_deg=full(slope), aspect_deg=full(aspect),
+            litho_array=np.full((1, n), int(litho_id)), pga_array=grid.reshape(1, n),
+            u_array=None, z_ref=z_ref, include_onehot=True,
+        )
+        Xn = (df[self._feat_cols].values.astype(np.float32) - self._mean) / self._std
+        with self._lock, torch.no_grad():
+            probs = self.model(torch.tensor(Xn, dtype=torch.float32)).numpy().ravel()
+        dns = df["dn_cm"].to_numpy(float)
+        crit = critical_pga_from_curve(grid, probs, self.threshold)
         return {
             "pga": [float(x) for x in grid],
             "prob": [float(x) for x in probs],
@@ -444,6 +436,7 @@ class LandslideModel:
             "val_auc": self.val_auc,
             "threshold": self.threshold,
             "dn_threshold_cm": DN_THRESHOLD_M * 100,
+            "model_version": self.model_version,
         }
 
 

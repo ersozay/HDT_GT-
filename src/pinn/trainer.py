@@ -32,6 +32,8 @@ class TrainConfig:
     lambda_phys: float = 1.0
     use_lambda_annealing: bool = True
     max_lambda: float = 5.0
+    seed: int | None = 42
+    verbose: bool = True
 
 
 @dataclass
@@ -43,6 +45,7 @@ class TrainHistory:
     val_auc: list[float]    = field(default_factory=list)
     focal_loss: list[float] = field(default_factory=list)
     phys_loss: list[float]  = field(default_factory=list)
+    mono_loss: list[float]  = field(default_factory=list)
 
 
 class PINNTrainer:
@@ -63,6 +66,10 @@ class PINNTrainer:
         config: TrainConfig | None = None,
     ):
         self.config = config or TrainConfig()
+        if self.config.seed is not None:
+            torch.manual_seed(self.config.seed)
+            np.random.seed(self.config.seed)
+        self.metadata: dict = {}
 
         if self.config.device == "auto":
             self.device = torch.device(
@@ -107,7 +114,11 @@ class PINNTrainer:
             self._to_tensor(slope),
             self._to_tensor(pga),
         )
-        return DataLoader(dataset, batch_size=self.config.batch_size, shuffle=shuffle)
+        gen = None
+        if self.config.seed is not None:
+            gen = torch.Generator().manual_seed(self.config.seed)
+        return DataLoader(dataset, batch_size=self.config.batch_size,
+                          shuffle=shuffle, generator=gen)
 
     def fit(
         self,
@@ -119,6 +130,7 @@ class PINNTrainer:
         y_val: np.ndarray,
         slope_val: np.ndarray,
         pga_val: np.ndarray,
+        path_sampler=None,
     ) -> TrainHistory:
         """
         Modeli eğitir.
@@ -129,6 +141,7 @@ class PINNTrainer:
         y_train, y_val   : Binary hedef (0/1)
         slope_train/val  : Eğim değerleri (fizik penaltı için)
         pga_train/val    : PGA değerleri (fizik penaltı için)
+        path_sampler     : PhysicsPathSampler — fizik-yolu kolokasyon çiftleri
 
         Döndürür
         --------
@@ -141,10 +154,12 @@ class PINNTrainer:
         patience_counter = 0
         best_epoch = 0
 
-        print(f"Cihaz: {self.device}")
-        print(f"Model parametreleri: {self.model.count_parameters():,}")
-        print(f"Eğitim örnekleri: {len(X_train):,} | Val örnekleri: {len(X_val):,}")
-        print("-" * 60)
+        log = print if self.config.verbose else (lambda *a, **k: None)
+        log(f"Cihaz: {self.device}")
+        log(f"Model parametreleri: {self.model.count_parameters():,}")
+        log(f"Eğitim örnekleri: {len(X_train):,} | Val örnekleri: {len(X_val):,}")
+        log("-" * 60)
+        use_paths = getattr(self.loss_fn, "uses_paths", False) and path_sampler is not None
 
         for epoch in range(1, self.config.epochs + 1):
             # Lambda annealing
@@ -153,12 +168,25 @@ class PINNTrainer:
 
             # --- Train ---
             self.model.train()
-            train_losses, focal_losses, phys_losses = [], [], []
+            train_losses, focal_losses, phys_losses, mono_losses = [], [], [], []
+            if use_paths:
+                Xa_np, Xb_np = path_sampler.sample(len(X_train))
+                Xa_all, Xb_all = self._to_tensor(Xa_np), self._to_tensor(Xb_np)
 
-            for X_b, y_b, slope_b, pga_b in train_loader:
+            for bi, (X_b, y_b, slope_b, pga_b) in enumerate(train_loader):
                 self.optimizer.zero_grad()
                 p_hat = self.model(X_b)
-                loss, components = self.loss_fn(p_hat, y_b, slope_b, pga_b)
+                p_a = p_b = None
+                if use_paths:
+                    sl = slice(bi * self.config.batch_size, (bi + 1) * self.config.batch_size)
+                    # Kısıt, dağıtılacak deterministik ağ üzerinde (dropout kapalı,
+                    # BN koşu istatistikleri) değerlendirilir; aksi halde dropout
+                    # gürültüsü sahte ihlal üretir. Gradyanlar yine akar.
+                    self.model.eval()
+                    p_a = self.model(Xa_all[sl])
+                    p_b = self.model(Xb_all[sl])
+                    self.model.train()
+                loss, components = self.loss_fn(p_hat, y_b, slope_b, pga_b, p_a=p_a, p_b=p_b)
                 loss.backward()
                 nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                 self.optimizer.step()
@@ -166,6 +194,7 @@ class PINNTrainer:
                 train_losses.append(components["total"])
                 focal_losses.append(components["focal"])
                 phys_losses.append(components["physics"])
+                mono_losses.append(components.get("mono", 0.0))
 
             # --- Validation ---
             val_loss, val_f1, val_auc = self._evaluate(X_val, y_val, slope_val, pga_val)
@@ -177,8 +206,10 @@ class PINNTrainer:
             history.val_auc.append(val_auc)
             history.focal_loss.append(np.mean(focal_losses))
             history.phys_loss.append(np.mean(phys_losses))
+            history.mono_loss.append(np.mean(mono_losses))
 
-            # Early stopping
+            # Early stopping — VAL focal (saf veri) kaybı izlenir. Toplam kayıp
+            # annealing ile büyüyen λ'yı içerdiğinden hareketli bir hedeftir.
             if val_loss < best_val_loss - self.config.min_delta:
                 best_val_loss    = val_loss
                 patience_counter = 0
@@ -188,17 +219,18 @@ class PINNTrainer:
                 patience_counter += 1
 
             if epoch % 10 == 0 or epoch == 1:
-                print(
+                log(
                     f"Epoch {epoch:4d}/{self.config.epochs} | "
                     f"Train={np.mean(train_losses):.4f} | "
                     f"Val={val_loss:.4f} | "
                     f"F1={val_f1:.4f} | "
                     f"AUC={val_auc:.4f} | "
-                    f"λ={self.loss_fn.lambda_phys:.2f}"
+                    f"λ={self.loss_fn.lambda_phys:.2f} | "
+                    f"mono={np.mean(mono_losses):.2e}"
                 )
 
             if patience_counter >= self.config.patience:
-                print(f"\nEarly stopping: epoch {best_epoch} en iyi (val_loss={best_val_loss:.4f})")
+                log(f"\nEarly stopping: epoch {best_epoch} en iyi (val_loss={best_val_loss:.4f})")
                 break
 
         return history
@@ -221,8 +253,8 @@ class PINNTrainer:
             pga_t   = self._to_tensor(pga)
 
             p_hat = self.model(X_t)
-            loss, _ = self.loss_fn(p_hat, y_t, slope_t, pga_t)
-            proba   = p_hat.squeeze().cpu().numpy()
+            loss    = self.loss_fn.focal_loss(p_hat, y_t)
+            proba   = p_hat.reshape(-1).cpu().numpy()
 
         y_pred = (proba >= 0.5).astype(int)
         f1  = f1_score(y, y_pred, zero_division=0)
@@ -242,13 +274,16 @@ class PINNTrainer:
             "val_loss":    val_loss,
             "val_f1":      f1,
             "val_auc":     auc,
+            **self.metadata,
         }, path)
 
     def load_best(self) -> nn.Module:
         """En iyi checkpoint'i yükle."""
         path = self.checkpoint_dir / "best_model.pt"
-        ckpt = torch.load(path, map_location=self.device)
+        ckpt = torch.load(path, map_location=self.device, weights_only=False)
         self.model.load_state_dict(ckpt["model_state"])
+        if not self.config.verbose:
+            return self.model
         print(f"En iyi model yüklendi — epoch={ckpt['epoch']}, "
               f"F1={ckpt['val_f1']:.4f}, AUC={ckpt['val_auc']:.4f}")
         return self.model

@@ -14,6 +14,13 @@ router = APIRouter(prefix="/api", tags=["results"])
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
 _METRICS = _BACKEND_DIR / "metrics.json"
 _VALIDATION = _BACKEND_DIR / "validation.json"
+_RESULTS = _BACKEND_DIR.parent / "outputs" / "results"
+
+
+def _read_json(path: Path):
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"{path.name} yok — ilgili betiği çalıştırın")
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 @router.get("/results/summary")
@@ -36,3 +43,34 @@ def results_validation():
     if not _VALIDATION.exists():
         raise HTTPException(status_code=404, detail="Doğrulama verisi yok")
     return json.loads(_VALIDATION.read_text(encoding="utf-8"))
+
+
+@router.get("/results/benchmark")
+def results_benchmark():
+    """Mekânsal blok CV karşılaştırması (scripts/09_benchmark.py)."""
+    return _read_json(_RESULTS / "benchmark_summary.json")
+
+
+@router.get("/results/critical-pga")
+def results_critical_pga():
+    """Kritik PGA belirsizliği + tasarım tablosu (scripts/10_critical_pga.py)."""
+    import csv
+    out = _read_json(_RESULTS / "critical_pga.json")
+    table = _RESULTS / "critical_pga_table.csv"
+    if table.exists():
+        with table.open(encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        for r in rows:
+            for k, v in r.items():
+                try:
+                    r[k] = float(v) if v not in ("", None) else None
+                except ValueError:
+                    pass
+        out["design_table"] = rows
+    return out
+
+
+@router.get("/results/fem")
+def results_fem():
+    """FEM-SSR pilot sonuçları (scripts/02_run_fem.py)."""
+    return _read_json(_RESULTS / "fem_pilots.json")

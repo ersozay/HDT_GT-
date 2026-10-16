@@ -6,8 +6,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-echo "▶ Backend başlatılıyor (http://localhost:8000) …"
-python3 -m uvicorn backend.main:app --reload --port 8000 &
+echo "▶ Backend başlatılıyor (http://localhost:8010) …"
+python3 -m uvicorn backend.main:app --reload --port 8010 &
 BACK_PID=$!
 
 cleanup() {
@@ -30,7 +30,7 @@ FRONT_PID=$!
 echo ""
 echo "──────────────────────────────────────────────"
 echo "  Frontend : http://localhost:5173"
-echo "  Backend  : http://localhost:8000/api/health"
+echo "  Backend  : http://localhost:8010/api/health"
 echo "  Kapatmak için: Ctrl+C"
 echo "──────────────────────────────────────────────"
 

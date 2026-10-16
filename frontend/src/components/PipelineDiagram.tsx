@@ -30,7 +30,7 @@ const NODES: NodeDef[] = [
   { id: "newmark", x: 230, y: 148, w: 160, h: 46, title: "Newmark rijit-blok", sub: "Jibson · Ambraseys → Dₙ", fill: "#f0fdfa", stroke: "#2c807b" },
 
   // Sütun 3 — model / çıktı
-  { id: "pinn", x: 450, y: 52, w: 160, h: 46, title: "PINN (39→…→1)", sub: "Focal + fizik cezası", fill: "#eef2ff", stroke: "#6366f1" },
+  { id: "pinn", x: 450, y: 52, w: 160, h: 46, title: "PINN (37→…→1)", sub: "Focal + fizik-yolu kısıtı", fill: "#eef2ff", stroke: "#6366f1" },
   { id: "crit", x: 450, y: 148, w: 160, h: 46, title: "Kritik PGA", sub: "P≥τ  ·  Dₙ=10 cm", fill: "#fef2f2", stroke: "#ef4444" },
   { id: "map", x: 450, y: 226, w: 160, h: 46, title: "Duyarlılık haritası", sub: "GeoTIFF + web overlay", fill: "#f8fafc", stroke: "#64748b" },
 ];

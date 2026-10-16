@@ -15,6 +15,16 @@ ALLOWED = {
     "training_history",
     "newmark_arias_models",
     "wenchuan_validation",
+    # v2 — mekânsal CV karşılaştırması, Kritik PGA belirsizliği, FEM-SSR
+    "benchmark_auc",
+    "benchmark_consistency",
+    "benchmark_pga_response",
+    "critical_pga_uncertainty",
+    "critical_pga_design_table",
+    "empirical_validation",
+    "fem_1327_displacement", "fem_1327_plastic_strain", "fem_1327_von_mises",
+    "fem_1353_displacement", "fem_1353_plastic_strain", "fem_1353_von_mises",
+    "pga_fs_curve_ID1327", "pga_fs_curve_ID1353",
 }
 
 

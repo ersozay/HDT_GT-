@@ -9,7 +9,7 @@ ikizinin **3 katmanlı** profesyonel uygulaması.
 │ React+Vite   │ ◀──────────────── │  FastAPI     │ ◀───────── │  (inference) │
 │ TS+Tailwind  │                   │  REST API    │            │  PINN+Fizik  │
 └──────────────┘                   └──────────────┘            └──────────────┘
-   :5173                              :8000                       model + raster
+   :5173                              :8010 (dev)                 model + raster
 ```
 
 ## Katmanlar
@@ -27,7 +27,7 @@ ikizinin **3 katmanlı** profesyonel uygulaması.
 ```
 
 - Frontend: http://localhost:5173
-- Backend:  http://localhost:8000/api/health
+- Backend:  http://localhost:8010/api/health
 
 İlk çalıştırmada `npm install` otomatik yapılır (ağ gerekir).
 
@@ -35,7 +35,7 @@ ikizinin **3 katmanlı** profesyonel uygulaması.
 
 **Backend**
 ```bash
-python3 -m uvicorn backend.main:app --reload --port 8000
+python3 -m uvicorn backend.main:app --reload --port 8010   # vite proxy bu portu bekler
 ```
 
 **Frontend**
@@ -65,7 +65,10 @@ portta (8000) çalışır.
 | GET  | `/api/map/meta` | Harita sınırları/merkez |
 | GET  | `/api/map/overlay.png` | Duyarlılık katmanı (RGBA PNG) |
 | GET  | `/api/map/point?lat=&lon=` | Koordinattan tahmin |
-| GET  | `/api/results/summary` | Test metrikleri |
+| GET  | `/api/results/summary` | Test + mekânsal CV metrikleri (03 betiği yazar) |
+| GET  | `/api/results/benchmark` | 9 modelin mekânsal CV karşılaştırması |
+| GET  | `/api/results/critical-pga` | Kritik PGA belirsizliği + tasarım tablosu |
+| GET  | `/api/results/fem` | FEM-SSR pilot sonuçları |
 | GET  | `/api/figures/{name}` | Figürler (whitelist) |
 
 ## Sayfalar
@@ -81,11 +84,20 @@ portta (8000) çalışır.
 - Python 3 + `fastapi uvicorn pydantic rasterio torch matplotlib pillow`
 - Node ≥ 18 + npm
 
+## Analiz Hattı (v2)
+
+```bash
+./run_pipeline.sh          # 09 → 03 → 05 → 10 → 02 → 04 → 06/07 → testler
+python3 -m pytest tests -q # 19 test (fizik, FEM kıyas problemleri, mekânsal CV)
+```
+
+Ayrıntılar ve sonuçlar: [docs/V2_SONUCLAR.md](docs/V2_SONUCLAR.md)
+
 ## Bilimsel Şeffaflık
 
 - **Litoloji** Macrostrat API proxy'sidir (resmi MTA haritası değil).
-- **FEM** konturları analitik yedektir (SfePy kurulu değil); Kᵧ ve Dₙ hesapları
-  gerçektir.
-- Kritik PGA (ML ≈ 0.55 g) rijit-blok Newmark'tan daha az muhafazakârdır.
+- **FEM**: Griffiths & Lane (1999) SSR çözücüsü (`src/fem/ssr_fem.py`); 2B idealize
+  kesit, psödo-statik yükleme. `src/fem/sfepy_solver.py` v1 kalıntısıdır, kullanılmaz.
+- **Kritik PGA** (P = 0.5) negatif örnekleme oranına duyarlıdır; aralığıyla raporlanır.
 
 > `app.py` (Streamlit) hızlı yedek demo olarak korunmuştur.

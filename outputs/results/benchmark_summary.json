@@ -1,0 +1,409 @@
+{
+  "protocol": {
+    "cv": "5-katlı mekânsal blok CV (0.25° bloklar, StratifiedGroupKFold)",
+    "inner_validation": "eğitim bloklarından blok-bazlı %15 (erken durdurma + eşik)",
+    "steep_subset": "eğim ≥ 15° test örnekleri",
+    "monotonicity": "test örneklerinde PGA 0.05–1.20 g taraması; P'nin >0.01 düştüğü örnek oranı"
+  },
+  "models": {
+    "newmark": {
+      "label": "Newmark (saf fizik)",
+      "roc_auc": {
+        "mean": 0.6892,
+        "std": 0.0976
+      },
+      "pr_auc": {
+        "mean": 0.4422,
+        "std": 0.1344
+      },
+      "f1": {
+        "mean": 0.4999,
+        "std": 0.1527
+      },
+      "precision": {
+        "mean": 0.6068,
+        "std": 0.0988
+      },
+      "recall": {
+        "mean": 0.4354,
+        "std": 0.1792
+      },
+      "kappa": {
+        "mean": 0.355,
+        "std": 0.1698
+      },
+      "brier": {
+        "mean": 0.2453,
+        "std": 0.0436
+      },
+      "roc_auc_steep": {
+        "mean": 0.6612,
+        "std": 0.1152
+      },
+      "mono_violation_rate": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "mono_mean_drop": {
+        "mean": 0.0,
+        "std": 0.0
+      }
+    },
+    "logreg": {
+      "label": "Lojistik regresyon",
+      "roc_auc": {
+        "mean": 0.9337,
+        "std": 0.0154
+      },
+      "pr_auc": {
+        "mean": 0.8497,
+        "std": 0.0318
+      },
+      "f1": {
+        "mean": 0.7502,
+        "std": 0.0469
+      },
+      "precision": {
+        "mean": 0.7476,
+        "std": 0.0751
+      },
+      "recall": {
+        "mean": 0.7735,
+        "std": 0.1331
+      },
+      "kappa": {
+        "mean": 0.6495,
+        "std": 0.0538
+      },
+      "brier": {
+        "mean": 0.0955,
+        "std": 0.0116
+      },
+      "roc_auc_steep": {
+        "mean": 0.8582,
+        "std": 0.0278
+      },
+      "mono_violation_rate": {
+        "mean": 0.0068,
+        "std": 0.0058
+      },
+      "mono_mean_drop": {
+        "mean": 0.0002,
+        "std": 0.0001
+      }
+    },
+    "rf": {
+      "label": "Random Forest",
+      "roc_auc": {
+        "mean": 0.9417,
+        "std": 0.018
+      },
+      "pr_auc": {
+        "mean": 0.8614,
+        "std": 0.0385
+      },
+      "f1": {
+        "mean": 0.7889,
+        "std": 0.04
+      },
+      "precision": {
+        "mean": 0.7594,
+        "std": 0.0548
+      },
+      "recall": {
+        "mean": 0.8266,
+        "std": 0.0761
+      },
+      "kappa": {
+        "mean": 0.7001,
+        "std": 0.0525
+      },
+      "brier": {
+        "mean": 0.104,
+        "std": 0.0177
+      },
+      "roc_auc_steep": {
+        "mean": 0.8697,
+        "std": 0.0264
+      },
+      "mono_violation_rate": {
+        "mean": 0.7293,
+        "std": 0.0433
+      },
+      "mono_mean_drop": {
+        "mean": 0.0838,
+        "std": 0.0158
+      }
+    },
+    "gbm": {
+      "label": "Gradient Boosting",
+      "roc_auc": {
+        "mean": 0.9458,
+        "std": 0.0136
+      },
+      "pr_auc": {
+        "mean": 0.8687,
+        "std": 0.0328
+      },
+      "f1": {
+        "mean": 0.7861,
+        "std": 0.0329
+      },
+      "precision": {
+        "mean": 0.7227,
+        "std": 0.06
+      },
+      "recall": {
+        "mean": 0.8684,
+        "std": 0.0636
+      },
+      "kappa": {
+        "mean": 0.6894,
+        "std": 0.0463
+      },
+      "brier": {
+        "mean": 0.0916,
+        "std": 0.0136
+      },
+      "roc_auc_steep": {
+        "mean": 0.8795,
+        "std": 0.022
+      },
+      "mono_violation_rate": {
+        "mean": 0.5606,
+        "std": 0.0573
+      },
+      "mono_mean_drop": {
+        "mean": 0.0807,
+        "std": 0.0268
+      }
+    },
+    "gbm_mono": {
+      "label": "GBM + monoton kısıt",
+      "roc_auc": {
+        "mean": 0.9506,
+        "std": 0.0102
+      },
+      "pr_auc": {
+        "mean": 0.8776,
+        "std": 0.0238
+      },
+      "f1": {
+        "mean": 0.799,
+        "std": 0.0232
+      },
+      "precision": {
+        "mean": 0.745,
+        "std": 0.0317
+      },
+      "recall": {
+        "mean": 0.8641,
+        "std": 0.0544
+      },
+      "kappa": {
+        "mean": 0.7103,
+        "std": 0.0289
+      },
+      "brier": {
+        "mean": 0.0833,
+        "std": 0.0104
+      },
+      "roc_auc_steep": {
+        "mean": 0.888,
+        "std": 0.0172
+      },
+      "mono_violation_rate": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "mono_mean_drop": {
+        "mean": 0.0,
+        "std": 0.0
+      }
+    },
+    "mlp": {
+      "label": "MLP (fiziksiz)",
+      "roc_auc": {
+        "mean": 0.9443,
+        "std": 0.013
+      },
+      "pr_auc": {
+        "mean": 0.8734,
+        "std": 0.0282
+      },
+      "f1": {
+        "mean": 0.7711,
+        "std": 0.0354
+      },
+      "precision": {
+        "mean": 0.7854,
+        "std": 0.0815
+      },
+      "recall": {
+        "mean": 0.7753,
+        "std": 0.1186
+      },
+      "kappa": {
+        "mean": 0.6817,
+        "std": 0.0389
+      },
+      "brier": {
+        "mean": 0.1005,
+        "std": 0.0076
+      },
+      "roc_auc_steep": {
+        "mean": 0.884,
+        "std": 0.0161
+      },
+      "mono_violation_rate": {
+        "mean": 0.5747,
+        "std": 0.2518
+      },
+      "mono_mean_drop": {
+        "mean": 0.1189,
+        "std": 0.0918
+      }
+    },
+    "pinn_v1": {
+      "label": "PINN v1",
+      "roc_auc": {
+        "mean": 0.9467,
+        "std": 0.0178
+      },
+      "pr_auc": {
+        "mean": 0.8782,
+        "std": 0.0345
+      },
+      "f1": {
+        "mean": 0.7879,
+        "std": 0.0329
+      },
+      "precision": {
+        "mean": 0.7734,
+        "std": 0.0607
+      },
+      "recall": {
+        "mean": 0.8114,
+        "std": 0.0879
+      },
+      "kappa": {
+        "mean": 0.7008,
+        "std": 0.0413
+      },
+      "brier": {
+        "mean": 0.0947,
+        "std": 0.0077
+      },
+      "roc_auc_steep": {
+        "mean": 0.8879,
+        "std": 0.0249
+      },
+      "mono_violation_rate": {
+        "mean": 0.5986,
+        "std": 0.0915
+      },
+      "mono_mean_drop": {
+        "mean": 0.1145,
+        "std": 0.0232
+      }
+    },
+    "pinn_v2": {
+      "label": "PINN v2 (önerilen)",
+      "roc_auc": {
+        "mean": 0.9474,
+        "std": 0.0155
+      },
+      "pr_auc": {
+        "mean": 0.8773,
+        "std": 0.0294
+      },
+      "f1": {
+        "mean": 0.7829,
+        "std": 0.0355
+      },
+      "precision": {
+        "mean": 0.7931,
+        "std": 0.0683
+      },
+      "recall": {
+        "mean": 0.7834,
+        "std": 0.0932
+      },
+      "kappa": {
+        "mean": 0.6974,
+        "std": 0.0447
+      },
+      "brier": {
+        "mean": 0.0969,
+        "std": 0.0054
+      },
+      "roc_auc_steep": {
+        "mean": 0.8874,
+        "std": 0.0206
+      },
+      "mono_violation_rate": {
+        "mean": 0.0082,
+        "std": 0.0167
+      },
+      "mono_mean_drop": {
+        "mean": 0.0064,
+        "std": 0.0097
+      }
+    },
+    "pinn_v2_nophysfeat": {
+      "label": "PINN v2 – fizik girdisiz",
+      "roc_auc": {
+        "mean": 0.9474,
+        "std": 0.0182
+      },
+      "pr_auc": {
+        "mean": 0.8807,
+        "std": 0.0345
+      },
+      "f1": {
+        "mean": 0.7895,
+        "std": 0.0322
+      },
+      "precision": {
+        "mean": 0.7706,
+        "std": 0.0653
+      },
+      "recall": {
+        "mean": 0.8183,
+        "std": 0.0858
+      },
+      "kappa": {
+        "mean": 0.7022,
+        "std": 0.0421
+      },
+      "brier": {
+        "mean": 0.095,
+        "std": 0.0079
+      },
+      "roc_auc_steep": {
+        "mean": 0.8902,
+        "std": 0.0226
+      },
+      "mono_violation_rate": {
+        "mean": 0.6431,
+        "std": 0.109
+      },
+      "mono_mean_drop": {
+        "mean": 0.1242,
+        "std": 0.0212
+      }
+    }
+  },
+  "reference_polygon_split_pinn_v2": {
+    "roc_auc": 0.9626,
+    "pr_auc": 0.91,
+    "f1": 0.8264,
+    "precision": 0.7587,
+    "recall": 0.9075,
+    "accuracy": 0.8903,
+    "kappa": 0.7472,
+    "brier": 0.0835,
+    "threshold": 0.47,
+    "roc_auc_steep": 0.9312
+  }
+}

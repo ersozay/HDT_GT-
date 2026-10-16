@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 
 from config import MODELS_DIR, FIGURES_DIR, DATA_PROCESSED, Z_REF_M, DN_THRESHOLD_M
 from src.geomechanics.lithology import LITHOLOGY_TABLE
-from src.data_engineering.feature_matrix import build_feature_matrix, ALL_FEATURE_COLUMNS
+from src.data_engineering.feature_matrix import build_feature_matrix
 
 st.set_page_config(page_title="Heyelan Dijital Twin", page_icon="⛰️", layout="wide")
 
@@ -34,39 +34,21 @@ st.set_page_config(page_title="Heyelan Dijital Twin", page_icon="⛰️", layout
 # ----------------------------------------------------------------------------
 @st.cache_resource
 def load_model():
-    import torch
-    from src.pinn.model import LandslidePINN
-
-    scaler = pickle.loads((MODELS_DIR / "scaler.pkl").read_bytes())
-    ckpt = torch.load(MODELS_DIR / "best_model.pt", map_location="cpu")
-    # Öznitelik sayısı checkpoint'ten çıkarılır (ilk katmanın giriş boyutu)
-    n_feat = ckpt["model_state"]["layer1.0.weight"].shape[1]
-    model = LandslidePINN(in_features=n_feat)
-    model.load_state_dict(ckpt["model_state"])
-    model.eval()
-
-    thr_path = MODELS_DIR / "threshold.json"
-    thr = 0.5
-    if thr_path.exists():
-        thr = json.loads(thr_path.read_text()).get("decision_threshold", 0.5)
-    return model, scaler, ckpt, float(thr)
+    from src.pinn.io import load_checkpoint
+    lm = load_checkpoint(MODELS_DIR / "best_model.pt", MODELS_DIR / "scaler.pkl",
+                         MODELS_DIR / "threshold.json")
+    return lm, lm.meta, lm.threshold
 
 
-def predict_point(model, scaler, *, slope, elevation, aspect, litho_id, pga, z_ref=Z_REF_M):
+def predict_point(lm, *, slope, elevation, aspect, litho_id, pga, z_ref=Z_REF_M):
     """Tek bir nokta için P(heyelan), Ky ve Dn döndürür."""
-    import torch
-
     a = lambda v: np.array([[v]], dtype=float)
-    df, feat_cols = build_feature_matrix(
+    df, _ = build_feature_matrix(
         elevation_m=a(elevation), slope_deg=a(slope), aspect_deg=a(aspect),
         litho_array=np.array([[litho_id]]), pga_array=a(pga),
         u_array=None, z_ref=z_ref, include_onehot=True,
     )
-    cols = [c for c in ALL_FEATURE_COLUMNS if c in df.columns]
-    X = df[cols].values.astype(np.float32)
-    Xn = (X - scaler["mean"]) / scaler["std"]
-    with torch.no_grad():
-        p = float(model(torch.tensor(Xn, dtype=torch.float32)).numpy().ravel()[0])
+    p = float(lm.predict(df[lm.feat_cols].values)[0])
     return p, float(df["ky_g"].iloc[0]), float(df["dn_cm"].iloc[0])
 
 
@@ -76,7 +58,7 @@ LITHO_OPTIONS = {f"{lid} — {v['description']}": lid for lid, v in LITHOLOGY_TA
 # ----------------------------------------------------------------------------
 # Arayüz
 # ----------------------------------------------------------------------------
-model, scaler, ckpt, DEC_THR = load_model()
+model, ckpt, DEC_THR = load_model()
 
 st.title("⛰️ Fizik Tabanlı Dijital Twin — Heyelan Duyarlılık Demosu")
 st.caption(
@@ -104,7 +86,7 @@ with tab1:
         litho_id = LITHO_OPTIONS[litho_label]
         pga = st.slider("PGA — Yüzey İvmesi (g)", 0.05, 1.50, 0.55, 0.01)
 
-    p, ky, dn = predict_point(model, scaler, slope=slope, elevation=elevation,
+    p, ky, dn = predict_point(model, slope=slope, elevation=elevation,
                               aspect=aspect, litho_id=litho_id, pga=pga)
 
     with c2:
@@ -149,7 +131,7 @@ with tab2:
     pga_grid = np.round(np.arange(0.05, 1.51, 0.05), 2)
     probs, dns = [], []
     for pg in pga_grid:
-        p, ky2, dn2 = predict_point(model, scaler, slope=slope2, elevation=elev2,
+        p, ky2, dn2 = predict_point(model, slope=slope2, elevation=elev2,
                                     aspect=180, litho_id=litho2, pga=pg)
         probs.append(p); dns.append(dn2)
     probs = np.array(probs); dns = np.array(dns)

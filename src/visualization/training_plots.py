@@ -29,7 +29,7 @@ def plot_training_history(
     ax = axes[0, 0]
     ax.plot(epochs, history.train_loss, label="Train", color="steelblue", lw=1.5)
     ax.plot(epochs, history.val_loss,   label="Val",   color="darkorange",  lw=1.5)
-    ax.set_title("Total Loss")
+    ax.set_title("Kayıp (train: toplam, val: focal)")
     ax.set_xlabel("Epoch")
     ax.legend()
     ax.grid(True, alpha=0.3)
@@ -54,8 +54,12 @@ def plot_training_history(
 
     # 4. Physics Penalty bileşeni
     ax = axes[1, 1]
-    ax.plot(epochs, history.phys_loss, color="coral", lw=1.5)
-    ax.set_title("Physics Penalty Bileşeni")
+    ax.plot(epochs, history.phys_loss, color="coral", lw=1.5, label="Stabilite cezası")
+    mono = getattr(history, "mono_loss", None)
+    if mono and any(v > 0 for v in mono):
+        ax.plot(epochs, mono, color="teal", lw=1.5, label="Fizik-yolu (monotonluk) cezası")
+        ax.legend()
+    ax.set_title("Fizik Ceza Bileşenleri")
     ax.set_xlabel("Epoch")
     ax.grid(True, alpha=0.3)
 

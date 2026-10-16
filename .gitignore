@@ -47,7 +47,9 @@ Thumbs.db
 
 # --- Project data & outputs (large binaries, regenerated locally) ---
 data/
-outputs/
+outputs/logs/
+outputs/models_v1_baseline/
+outputs/fem/
 *.tif
 *.tiff
 *.parquet
@@ -60,3 +62,11 @@ outputs/
 # --- Logs & temp ---
 *.log
 .cache/
+
+# v2 model, sonuç tabloları ve figürler küçük (~11 MB) ve uygulama/tez için gerekli
+!outputs/models/**
+!outputs/results/**
+!outputs/figures/**
+
+# Yerel editör/araç ayarları
+.claude/
