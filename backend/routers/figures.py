@@ -25,6 +25,7 @@ ALLOWED = {
     "fem_1327_displacement", "fem_1327_plastic_strain", "fem_1327_von_mises",
     "fem_1353_displacement", "fem_1353_plastic_strain", "fem_1353_von_mises",
     "pga_fs_curve_ID1327", "pga_fs_curve_ID1353",
+    "newmark_th_pilots", "newmark_th_validation", "dynamic_risk_maps",
 }
 
 

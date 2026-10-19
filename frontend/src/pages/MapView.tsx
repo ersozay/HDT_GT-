@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -8,6 +8,9 @@ import {
   Popup,
   Rectangle,
   LayersControl,
+  GeoJSON,
+  CircleMarker,
+  Tooltip,
 } from "react-leaflet";
 import L from "leaflet";
 import {
@@ -16,6 +19,9 @@ import {
   LatLonResult,
   LithologyLegendItem,
   RainfallMeta,
+  MapLayerInfo,
+  MapLayerMeta,
+  NewmarkSim,
 } from "../api/client";
 import { Card, CardTitle } from "../components/Card";
 import RiskBadge from "../components/RiskBadge";
@@ -53,12 +59,66 @@ export default function MapView() {
   const [loading, setLoading] = useState(false);
   const [legend, setLegend] = useState<LithologyLegendItem[]>([]);
   const [rain, setRain] = useState<RainfallMeta | null>(null);
+  const [layerList, setLayerList] = useState<MapLayerInfo[]>([]);
+  const [extra, setExtra] = useState<string>("");
+  const [extraMeta, setExtraMeta] = useState<MapLayerMeta | null>(null);
+  const [extraOpacity, setExtraOpacity] = useState(0.75);
+  const [inventory, setInventory] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [faults, setFaults] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [stations, setStations] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [sim, setSim] = useState<NewmarkSim | null>(null);
+  const [frame, setFrame] = useState<number>(-1); // -1 → simülasyon kapalı
+  const [playing, setPlaying] = useState(false);
+  const invRef = useRef<L.GeoJSON | null>(null);
 
   useEffect(() => {
     api.mapMeta().then(setMeta).catch(() => {});
     api.lithologyLegend().then(setLegend).catch(() => {});
     api.rainfallMeta().then(setRain).catch(() => {});
+    api.mapLayers().then(setLayerList).catch(() => {});
+    api.inventoryGeojson().then(setInventory).catch(() => {});
+    api.faultsGeojson().then(setFaults).catch(() => {});
+    api.stationsGeojson().then(setStations).catch(() => {});
+    api.newmarkSim().then(setSim).catch(() => {});
   }, []);
+
+  const simIndex = useMemo(() => {
+    const m = new Map<string, number>();
+    sim?.polygon_ids.forEach((id, i) => m.set(String(id), i));
+    return m;
+  }, [sim]);
+
+  // Oynatma döngüsü
+  useEffect(() => {
+    if (!playing || !sim) return;
+    const t = window.setInterval(() => {
+      setFrame((f) => {
+        const n = f + 1;
+        if (n >= sim.times_s.length) {
+          setPlaying(false);
+          return sim.times_s.length - 1;
+        }
+        return n;
+      });
+    }, 180);
+    return () => window.clearInterval(t);
+  }, [playing, sim]);
+
+  // Kare değişince poligon renklerini güncelle (katmanı yeniden kurmadan)
+  useEffect(() => {
+    const layer = invRef.current;
+    if (!layer) return;
+    layer.eachLayer((l) => {
+      const f = (l as L.Polygon).feature as GeoJSON.Feature | undefined;
+      const id = String((f?.properties as { id?: string })?.id ?? "");
+      (l as L.Path).setStyle(polyStyle(sim, simIndex, frame, id));
+    });
+  }, [frame, sim, simIndex]);
+
+  useEffect(() => {
+    setExtraMeta(null);
+    if (extra) api.mapLayerMeta(extra).then(setExtraMeta).catch(() => {});
+  }, [extra]);
 
   const handleClick = (lat: number, lon: number) => {
     setPick({ lat, lon });
@@ -132,6 +192,74 @@ export default function MapView() {
                   />
                 </LayersControl.Overlay>
 
+                {inventory && (
+                  <LayersControl.Overlay checked name="Heyelan envanteri (Kocaman 2025)">
+                    <GeoJSON
+                      ref={invRef}
+                      data={inventory}
+                      style={(f) => polyStyle(sim, simIndex, frame, String((f?.properties as { id?: string })?.id ?? ""))}
+                      onEachFeature={(f, layer) => {
+                        const p = f.properties as { id?: string; area_m2?: number; dn_th_cm?: number | null };
+                        layer.bindTooltip(
+                          `Heyelan ${p.id ?? ""} · ${Math.round(p.area_m2 ?? 0).toLocaleString("tr-TR")} m²` +
+                            (p.dn_th_cm != null ? ` · Dₙ ${p.dn_th_cm.toFixed(1)} cm` : ""),
+                          { sticky: true },
+                        );
+                      }}
+                    />
+                  </LayersControl.Overlay>
+                )}
+                {faults && (
+                  <LayersControl.Overlay checked name="Faylar + 2023 kırılması">
+                    <GeoJSON
+                      data={faults}
+                      style={(f) =>
+                        (f?.properties as { kind?: string })?.kind === "rupture_2023"
+                          ? { color: "#b91c1c", weight: 4, opacity: 0.9 }
+                          : { color: "#111827", weight: 1.5, opacity: 0.8, dashArray: "4 3" }
+                      }
+                      onEachFeature={(f, layer) => {
+                        const p = f.properties as { kind?: string; slip_type?: string };
+                        layer.bindTooltip(
+                          p.kind === "rupture_2023"
+                            ? "6 Şubat 2023 kırılması (USGS)"
+                            : `Aktif fay (GEM)${p.slip_type ? " · " + p.slip_type : ""}`,
+                          { sticky: true },
+                        );
+                      }}
+                    />
+                  </LayersControl.Overlay>
+                )}
+                {stations && (
+                  <LayersControl.Overlay name="AFAD ivme istasyonları (ESM)">
+                    <>
+                      {stations.features.map((f) => {
+                        const [lon, lat] = (f.geometry as GeoJSON.Point).coordinates;
+                        const p = f.properties as Record<string, number | string>;
+                        const pga = Number(p.pga_pazarcik ?? p.pga_elbistan ?? 0);
+                        return (
+                          <CircleMarker
+                            key={String(p.station)}
+                            center={[lat, lon]}
+                            radius={4 + Math.min(10, pga * 8)}
+                            pathOptions={{ color: "#ffffff", weight: 1.5, fillColor: "#1d4ed8", fillOpacity: 0.85 }}
+                          >
+                            <Tooltip>
+                              <div className="text-xs">
+                                <b>TK.{p.station}</b>
+                                <br />
+                                Pazarcık PGA: {p.pga_pazarcik != null ? `${Number(p.pga_pazarcik).toFixed(2)} g` : "—"}
+                                <br />
+                                Elbistan PGA: {p.pga_elbistan != null ? `${Number(p.pga_elbistan).toFixed(2)} g` : "—"}
+                              </div>
+                            </Tooltip>
+                          </CircleMarker>
+                        );
+                      })}
+                    </>
+                  </LayersControl.Overlay>
+                )}
+
                 {/* Yağış — yalnız görsel bağlam (istek 9) */}
                 {rain?.available && (
                   <LayersControl.Overlay name="Yağış (CHIRPS · görsel)">
@@ -143,6 +271,15 @@ export default function MapView() {
                   </LayersControl.Overlay>
                 )}
               </LayersControl>
+
+              {extra && extraMeta && (
+                <ImageOverlay
+                  key={extra}
+                  url={api.mapLayerUrl(extra)}
+                  bounds={extraMeta.bounds}
+                  opacity={extraOpacity}
+                />
+              )}
 
               {showOverlay && (
                 <ImageOverlay
@@ -238,10 +375,133 @@ export default function MapView() {
               </div>
             </div>
             <p className="mt-4 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
-              Katman seçici (sağ üst) ile <b>Litoloji</b> ve <b>Yağış</b>{" "}
-              katmanlarını açıp kapatabilirsiniz.
+              Sağ üstteki katman seçiciden envanter, faylar, 2023 kırılması, ivme
+              istasyonları, litoloji ve yağış katmanlarını açıp kapatabilirsiniz.
             </p>
           </Card>
+
+          {sim && (
+            <Card>
+              <CardTitle hint="Gerçek AFAD ivme kayıtları · rijit-blok Newmark (zaman-tanım)">
+                Kayma Simülasyonu
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <button
+                  className="btn-primary px-3 py-1.5 text-sm"
+                  onClick={() => {
+                    if (frame < 0 || frame >= sim.times_s.length - 1) setFrame(0);
+                    setPlaying((p) => !p);
+                  }}
+                >
+                  {playing ? "Duraklat" : frame >= 0 ? "Devam / Yeniden" : "Depremi oynat"}
+                </button>
+                {frame >= 0 && (
+                  <button
+                    className="rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    onClick={() => {
+                      setPlaying(false);
+                      setFrame(-1);
+                    }}
+                  >
+                    Kapat
+                  </button>
+                )}
+              </div>
+              {frame >= 0 && (
+                <div className="mt-3 space-y-2">
+                  <input
+                    type="range"
+                    className="input-range"
+                    min={0}
+                    max={sim.times_s.length - 1}
+                    value={frame}
+                    onChange={(e) => {
+                      setPlaying(false);
+                      setFrame(Number(e.target.value));
+                    }}
+                  />
+                  <div className="flex justify-between text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                    <span>t = {sim.times_s[frame].toFixed(0)} s</span>
+                    <span>
+                      Dₙ ≥ {sim.dn_threshold_cm} cm:{" "}
+                      <b className="text-rose-600 dark:text-rose-300">
+                        {sim.history_cm.filter((h) => h[frame] >= sim.dn_threshold_cm).length}
+                      </b>{" "}
+                      / {sim.polygon_ids.length} poligon
+                    </span>
+                  </div>
+                </div>
+              )}
+              <ul className="mt-3 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                <li className="flex items-center gap-2"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: SIM_COLORS[0] }} />Dₙ &lt; 1 cm</li>
+                <li className="flex items-center gap-2"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: SIM_COLORS[1] }} />1–10 cm</li>
+                <li className="flex items-center gap-2"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: SIM_COLORS[2] }} />≥ 10 cm (tetiklendi)</li>
+              </ul>
+              <p className="mt-3 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+                Her poligonda en yakın AFAD istasyonunun kaydı, poligonun ShakeMap PGA&apos;sına
+                ölçeklendi. Sonda poligonların %{(100 * sim.summary.share_triggered_10cm).toFixed(0)}&apos;i 10 cm&apos;yi
+                aşıyor; %{(100 * sim.summary.share_pazarcik_dominant).toFixed(0)}&apos;inde Pazarcık depremi belirleyici.
+              </p>
+            </Card>
+          )}
+
+          {layerList.length > 0 && (
+            <Card>
+              <CardTitle hint="Açık kaynak koşullandırıcılar ve yer hareketi">Ek Katman</CardTitle>
+              <select
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                value={extra}
+                onChange={(e) => setExtra(e.target.value)}
+              >
+                <option value="">— Yok —</option>
+                {layerList.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.title}
+                  </option>
+                ))}
+              </select>
+              {extra && extraMeta && (
+                <div className="mt-3 space-y-2">
+                  {extraMeta.gradient ? (
+                    <>
+                      <div
+                        className="h-3 w-full rounded-full"
+                        style={{ background: `linear-gradient(to right, ${extraMeta.gradient.join(",")})` }}
+                      />
+                      <div className="flex justify-between text-[11px] tabular-nums text-slate-400">
+                        <span>{extraMeta.vmin?.toFixed(1)}</span>
+                        <span>
+                          {extraMeta.vmax?.toFixed(1)} {extraMeta.unit}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <ul className="grid grid-cols-2 gap-1">
+                      {extraMeta.legend?.map((l) => (
+                        <li key={l.code} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                          <span className="inline-block h-3 w-3 rounded-sm ring-1 ring-black/10" style={{ backgroundColor: l.color }} />
+                          {l.label}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <label className="block text-xs text-slate-500 dark:text-slate-400">
+                    Opaklık {Math.round(extraOpacity * 100)}%
+                    <input
+                      type="range"
+                      className="input-range mt-1"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={extraOpacity}
+                      onChange={(e) => setExtraOpacity(Number(e.target.value))}
+                    />
+                  </label>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">Kaynak: {extraMeta.source}</p>
+                </div>
+              )}
+            </Card>
+          )}
 
           {/* Kategorik litoloji lejantı (istek 10) */}
           {legend.length > 0 && (
@@ -312,6 +572,16 @@ export default function MapView() {
                 <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
                   {pt.litho_name}
                 </div>
+                {pt.layers && (
+                  <dl className="grid grid-cols-2 gap-2 text-sm">
+                    {pt.layers.dist_fault_km != null && <Info k="Faya uzaklık" v={`${pt.layers.dist_fault_km.toFixed(1)} km`} />}
+                    {pt.layers.dist_rupture_km != null && <Info k="2023 kırılması" v={`${pt.layers.dist_rupture_km.toFixed(1)} km`} />}
+                    {pt.layers.vs30 != null && <Info k="Vs30" v={`${pt.layers.vs30.toFixed(0)} m/s`} />}
+                    {pt.layers.pgv_cms != null && <Info k="PGV" v={`${pt.layers.pgv_cms.toFixed(0)} cm/s`} />}
+                    {pt.layers.tri_m != null && <Info k="Pürüzlülük (TRI)" v={`${pt.layers.tri_m.toFixed(1)} m`} />}
+                    {pt.layers.clay_pct != null && <Info k="Kil" v={`%${pt.layers.clay_pct.toFixed(0)}`} />}
+                  </dl>
+                )}
               </div>
             ) : pt && !pt.in_bounds ? (
               <p className="text-sm text-rose-600 dark:text-rose-300">
@@ -327,6 +597,18 @@ export default function MapView() {
       </div>
     </div>
   );
+}
+
+const SIM_COLORS = ["#a3a29c", "#eda100", "#e34948"];
+
+function polyStyle(sim: NewmarkSim | null, idx: Map<string, number>, frame: number, id: string): L.PathOptions {
+  if (!sim || frame < 0) {
+    return { color: "#7f1d1d", weight: 1, fillColor: "#ef4444", fillOpacity: 0.35 };
+  }
+  const i = idx.get(id);
+  const dn = i == null ? 0 : sim.history_cm[i][frame];
+  const c = dn >= sim.dn_threshold_cm ? SIM_COLORS[2] : dn >= 1 ? SIM_COLORS[1] : SIM_COLORS[0];
+  return { color: c, weight: dn >= sim.dn_threshold_cm ? 2 : 1, fillColor: c, fillOpacity: dn >= 1 ? 0.75 : 0.3 };
 }
 
 function Info({ k, v }: { k: string; v: string }) {

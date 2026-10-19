@@ -23,6 +23,11 @@ shapely>=2.0
 pyproj>=3.5
 fiona>=1.9
 
+# Açık kaynak ek katmanlar ve ivme kayıtları
+pysheds>=0.5          # DEM akış ağı (dereye uzaklık, TWI)
+obspy>=1.4            # (isteğe bağlı) miniSEED kayıtları için
+certifi
+
 # Görselleştirme
 matplotlib>=3.7
 seaborn>=0.12

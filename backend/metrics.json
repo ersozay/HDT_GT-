@@ -1,27 +1,27 @@
 {
-  "model_version": "pinn_v2",
-  "roc_auc": 0.943,
-  "roc_auc_steep": 0.887,
-  "pr_auc": 0.867,
-  "accuracy": 0.883,
-  "recall": 0.786,
-  "precision": 0.788,
-  "f1": 0.787,
-  "kappa": 0.706,
-  "brier": 0.093,
-  "mono_violation_rate": 0.0057,
-  "critical_pga_ml": 0.378,
+  "model_version": "pinn_v2_L",
+  "roc_auc": 0.965,
+  "roc_auc_steep": 0.911,
+  "pr_auc": 0.918,
+  "accuracy": 0.912,
+  "recall": 0.819,
+  "precision": 0.857,
+  "f1": 0.837,
+  "kappa": 0.777,
+  "brier": 0.072,
+  "mono_violation_rate": 0.0007,
+  "critical_pga_ml": 0.616,
   "n_samples": 89397,
   "landslide_ratio": 0.286,
-  "n_features": 37,
-  "threshold": 0.43,
+  "n_features": 54,
+  "threshold": 0.41,
   "shap_order": [
-    "slope_deg",
-    "pga_g",
     "elevation_m",
+    "pga_g",
+    "slope_deg",
+    "log_tri",
     "litoloji (one-hot toplam)",
-    "ky_g",
-    "aspect_cos"
+    "log_relief"
   ],
   "split": "mekânsal blok (0.25°) 3'lü (train/val/test)",
   "earthquake": "Kahramanmaraş 6 Şubat 2023 (Mw7.8 + Mw7.5)",
@@ -33,60 +33,55 @@
   },
   "cv": {
     "roc_auc": {
-      "mean": 0.9474,
-      "std": 0.0155
+      "mean": 0.9653,
+      "std": 0.0133
     },
     "pr_auc": {
-      "mean": 0.8773,
-      "std": 0.0294
+      "mean": 0.9134,
+      "std": 0.0283
     },
     "f1": {
-      "mean": 0.7829,
-      "std": 0.0355
+      "mean": 0.8288,
+      "std": 0.0423
     },
     "precision": {
-      "mean": 0.7931,
-      "std": 0.0683
+      "mean": 0.8557,
+      "std": 0.0322
     },
     "recall": {
-      "mean": 0.7834,
-      "std": 0.0932
+      "mean": 0.8085,
+      "std": 0.0876
     },
     "kappa": {
-      "mean": 0.6974,
-      "std": 0.0447
+      "mean": 0.7642,
+      "std": 0.0519
     },
     "brier": {
-      "mean": 0.0969,
-      "std": 0.0054
+      "mean": 0.0776,
+      "std": 0.0088
     },
     "roc_auc_steep": {
-      "mean": 0.8874,
-      "std": 0.0206
+      "mean": 0.9082,
+      "std": 0.0216
     },
     "mono_violation_rate": {
-      "mean": 0.0082,
-      "std": 0.0167
+      "mean": 0.0,
+      "std": 0.0
     },
     "mono_mean_drop": {
-      "mean": 0.0064,
-      "std": 0.0097
+      "mean": 0.0,
+      "std": 0.0
     }
   },
-  "v1_reference": {
-    "roc_auc": 0.963,
-    "split": "rastgele poligon ayrımı",
-    "note": "v1 (Temmuz 2026) sonucu; komşu poligon sızıntısı nedeniyle iyimser."
-  },
   "critical_pga": {
-    "critical_pga_g": 0.378,
+    "critical_pga_g": 0.616,
     "ensemble_range_g": [
-      0.26,
-      0.481
+      0.493,
+      0.75
     ],
     "bootstrap_95ci_g": [
-      0.367,
-      0.39
+      0.602,
+      0.632
     ],
     "newmark_critical_pga_g": 1.293,
     "steep_slope_threshold_deg": 22.3,
@@ -95,56 +90,62 @@
     "levels": {
       "onset_lr1": {
         "level_p": 0.2857,
-        "critical_pga_g": 0.055,
+        "critical_pga_g": 0.093,
         "ensemble_bootstrap_95ci_g": [
-          0.052,
-          0.057
+          0.087,
+          0.098
         ],
-        "median_of_models_g": 0.045,
-        "final_model_g": 0.101,
+        "median_of_models_g": 0.102,
+        "final_model_g": 0.181,
         "cv_folds_g": [
-          0.027,
-          0.03,
-          0.06,
-          0.077,
+          0.113,
+          0.047,
+          0.096,
+          0.108,
           0.02
         ],
         "model_range_g": [
           0.02,
-          0.101
+          0.181
         ],
         "final_bootstrap_95ci_g": [
-          0.099,
-          0.104
+          0.171,
+          0.191
         ]
       },
       "p05": {
         "level_p": 0.5,
-        "critical_pga_g": 0.378,
+        "critical_pga_g": 0.616,
         "ensemble_bootstrap_95ci_g": [
-          0.367,
-          0.39
+          0.602,
+          0.632
         ],
-        "median_of_models_g": 0.363,
-        "final_model_g": 0.481,
+        "median_of_models_g": 0.604,
+        "final_model_g": 0.75,
         "cv_folds_g": [
-          0.336,
-          0.357,
-          0.369,
-          0.446,
-          0.26
+          0.644,
+          0.573,
+          0.635,
+          0.546,
+          0.493
         ],
         "model_range_g": [
-          0.26,
-          0.481
+          0.493,
+          0.75
         ],
         "final_bootstrap_95ci_g": [
-          0.472,
-          0.491
+          0.739,
+          0.762
         ]
       }
     }
   },
+  "v1_reference": {
+    "roc_auc": 0.963,
+    "split": "rastgele poligon ayrımı",
+    "note": "v1 (Temmuz 2026) sonucu; komşu poligon sızıntısı nedeniyle iyimser."
+  },
+  "critical_pga_p05": 0.616,
   "empirical_validation": {
     "empirical_critical_pga_fr1_g": 0.085,
     "empirical_fr_steep": [
@@ -214,9 +215,9 @@
         "n": 33
       }
     ],
-    "spearman_binned": 0.881,
-    "spearman_binned_p": 1.3489304583089972e-08,
-    "spearman_cells": 0.128,
+    "spearman_binned": 0.871,
+    "spearman_binned_p": 3.011893857816272e-08,
+    "spearman_cells": 0.133,
     "landslide_area_prevalence": 0.00047,
     "n_bins": 24,
     "note": "Gözlenen = envanter poligonlarının ızgara hücresindeki alan oranı; model = gözlenen PGA'da P(heyelan). Aynı 0.008° ızgara."
@@ -225,30 +226,29 @@
     {
       "neg_pos_ratio": 1.0,
       "train_pos_rate": 0.501,
-      "critical_pga_at_0.5_mean": 0.284,
-      "critical_pga_at_0.5_sd": 0.068,
-      "critical_pga_onset_lr1_mean": 0.286,
-      "test_roc_auc_mean": 0.942,
+      "critical_pga_at_0.5_mean": 0.448,
+      "critical_pga_at_0.5_sd": 0.091,
+      "critical_pga_onset_lr1_mean": 0.45,
+      "test_roc_auc_mean": 0.966,
       "n_seeds": 3
     },
     {
       "neg_pos_ratio": 1.5,
       "train_pos_rate": 0.401,
-      "critical_pga_at_0.5_mean": 0.236,
-      "critical_pga_at_0.5_sd": 0.054,
-      "critical_pga_onset_lr1_mean": 0.078,
-      "test_roc_auc_mean": 0.94,
+      "critical_pga_at_0.5_mean": 0.446,
+      "critical_pga_at_0.5_sd": 0.013,
+      "critical_pga_onset_lr1_mean": 0.218,
+      "test_roc_auc_mean": 0.963,
       "n_seeds": 3
     },
     {
       "neg_pos_ratio": 2.5,
       "train_pos_rate": 0.287,
-      "critical_pga_at_0.5_mean": 0.437,
-      "critical_pga_at_0.5_sd": 0.105,
-      "critical_pga_onset_lr1_mean": 0.083,
-      "test_roc_auc_mean": 0.943,
+      "critical_pga_at_0.5_mean": 0.74,
+      "critical_pga_at_0.5_sd": 0.055,
+      "critical_pga_onset_lr1_mean": 0.162,
+      "test_roc_auc_mean": 0.964,
       "n_seeds": 3
     }
-  ],
-  "critical_pga_p05": 0.378
+  ]
 }

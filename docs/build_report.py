@@ -34,7 +34,11 @@ bench = load("benchmark_summary.json")
 crit = load("critical_pga.json")
 fem = load("fem_pilots.json")
 shap = load("shap_importance.json")
+nmk = load("newmark_th_validation.json")
+import pandas as _pd
+sm_st = _pd.read_csv(RES / "strong_motion_stations.csv")
 metrics = json.loads((ROOT / "backend" / "metrics.json").read_text(encoding="utf-8"))
+MAIN = metrics.get("model_version", "pinn_v2")
 cp, emp, sens = crit["critical_pga"], crit["empirical_validation"], crit["neg_ratio_sensitivity"]
 M = bench["models"]
 
@@ -237,6 +241,12 @@ table(["Veri Katmanı", "Kaynak", "Ne İşe Yarar"], [
     ["Eğim / Bakı", "DEM’den (Horn 1981)", "Dik yamaçlar heyelana daha yatkın"],
     ["Litoloji (kaya türü)", "Macrostrat jeoloji PROXY’si", "Kayanın dayanımı (kohezyon, sürtünme açısı)"],
     ["Heyelan envanteri", "Kocaman 2025 (2.596 poligon)", "Modelin öğrendiği GERÇEK heyelan etiketleri"],
+    ["Pürüzlülük, rölyef, eğrilik, TWI, dereye uzaklık", "Copernicus DEM türevleri", "Arazinin kırıklılığı ve su toplama"],
+    ["Aktif faya uzaklık", "GEM Global Active Faults (açık)", "Faya yakın kırıklı kaya — Kocaman’ın en etkili faktörlerinden"],
+    ["Vs30, PGV, MMI, kırılma izi", "USGS ShakeMap (2 deprem)", "Zemin sınıfı ve sarsıntının diğer ölçüleri"],
+    ["Arazi örtüsü", "ESA WorldCover 2021 (10 m)", "Orman, çayır, tarım, çıplak alan"],
+    ["Kil / kum oranı", "ISRIC SoilGrids 2.0 (250 m)", "Yüzey zeminin dokusu"],
+    ["İvme kayıtları", "AFAD TK ağı, ESM veritabanı (136 kayıt)", "Kayma simülasyonu (zaman-tanım Newmark)"],
 ], [3.6, 5.6, 7.5], align_right_from=99)
 n_txt = f"{metrics['n_samples']:,}".replace(",", ".")
 pos_txt = f"{100 * metrics['landslide_ratio']:.1f}".replace(".", ",")
@@ -298,7 +308,9 @@ bullet("**Turuncu kesikli çizgi (Fizik):** Saf Newmark denklemiyle 10 cm eşiğ
 bullet("**Noktalı yatay çizgiler:** P = 0,5 karar düzeyi ve LR = 1 (heyelan lehine başlangıç) düzeyi.")
 para(f"**Sonuç:** Ortalama eğri 0,5 düzeyini **≈ {f2(cp['critical_pga_g'])} g**’de geçiyor "
      f"(model belirsizliği {f2(cp['ensemble_range_g'][0])}–{f2(cp['ensemble_range_g'][1])} g). "
-     "Yani dik yamaçlar, yaklaşık 0,4 g yer ivmesinde heyelan sınıfına geçer.", color=NAVY)
+     f"Ayrıca dik yamaçların heyelan lehine dönmeye başladığı eşik (LR = 1) ≈ {f2(cp['onset_lr1_g'])} g; "
+     f"bu değer envanterden doğrudan hesaplanan ampirik eşikle ({f2(emp['empirical_critical_pga_fr1_g'])} g) örtüşüyor.",
+     color=NAVY)
 
 doc.add_heading("Kritik PGA’nın farklı tanımları", level=2)
 table(["Tanım", "Değer", "Belirsizlik / Not"], [
@@ -347,7 +359,8 @@ page_break()
 doc.add_heading("5. Sonuçlar", level=1)
 doc.add_heading("5.1 Model Karşılaştırması (mekânsal blok doğrulama)", level=2)
 para("Önerilen modelin değerini göstermek için 9 model aynı koşullarda karşılaştırıldı:")
-order = ["newmark", "logreg", "rf", "gbm", "gbm_mono", "mlp", "pinn_v1", "pinn_v2", "pinn_v2_nophysfeat"]
+order = ["newmark", "logreg", "rf", "gbm", "gbm_mono", "mlp", "pinn_v1", "pinn_v2", "pinn_v2_nophysfeat",
+         "logreg_L", "rf_L", "gbm_L", "gbm_mono_L", "mlp_L", "pinn_v2_L"]
 rows = []
 for k in order:
     m = M.get(k)
@@ -357,14 +370,17 @@ for k in order:
                  f3(m.get("roc_auc_steep", {}).get("mean")), f3(m["f1"]["mean"]),
                  pct(m.get("mono_violation_rate", {}).get("mean"))])
 table(["Model", "ROC-AUC", "Dik arazi AUC", "F1", "Fizik ihlali*"], rows,
-      [5.6, 3.3, 2.8, 2.2, 2.8], highlight=[k for k in order if k in M].index("pinn_v2"))
+      [5.6, 3.3, 2.8, 2.2, 2.8], highlight=[k for k in order if k in M].index(MAIN if MAIN in M else "pinn_v2"))
 para("* PGA artırıldığında heyelan olasılığının düştüğü (fiziğe aykırı davranan) test örneklerinin oranı.",
      italic=True, color=GRAY, size=9)
 bullet("Öğrenen modellerin ayırma gücü birbirine çok yakın (farklar ölçüm belirsizliğinin içinde); "
        "saf fizik (Newmark) tek başına zayıf kalıyor.")
 bullet("**Asıl fark fiziksel tutarlılıkta:** Fizik kısıtı olmayan modeller (Random Forest, Gradient "
        f"Boosting, MLP, PINN v1) örneklerin %56–73’ünde, deprem şiddetlendikçe heyelan riskini "
-       f"azaltıyor. PINN v2’de bu oran {pct(M['pinn_v2']['mono_violation_rate']['mean'])}.")
+       f"azaltıyor. PINN v2’de bu oran {pct(M[MAIN]['mono_violation_rate']['mean'])}.")
+bullet("**Açık kaynak katmanlar** (“+ katmanlar” satırları) tüm modellerde ayırma gücünü belirgin "
+       f"artırdı: PINN v2 için AUC {f3(M['pinn_v2']['roc_auc']['mean'])} → {f3(M[MAIN]['roc_auc']['mean'])}, "
+       f"dik arazide {f3(M['pinn_v2']['roc_auc_steep']['mean'])} → {f3(M[MAIN]['roc_auc_steep']['mean'])}.")
 bullet("Fizik kısıtı doğruluktan ödün vermeden fiziksel tutarlılık sağlıyor; bu, Kritik PGA "
        "analizinin güvenilir olmasının ön koşuludur.")
 figure("benchmark_consistency", "Şekil 3. Doğruluk – fiziksel tutarlılık düzlemi. Sol üst köşe en iyidir.", 13.5)
@@ -420,12 +436,33 @@ bullet("Kohezyonlu marnda (ID 1353) FEM daha derin, dairesel bir kayma yüzeyi b
 figure("fem_1353_plastic_strain", "Şekil 7. ID 1353 — FEM’de birikmiş plastik kayma gerinmesi: "
        "topuktan geçen dairesel kayma yüzeyi.", 15.5)
 
+doc.add_heading("5.6 Gerçek İvme Kayıtlarıyla Kayma Simülasyonu", level=2)
+n_p = int((sm_st.event == "pazarcik").sum()); n_e = int((sm_st.event == "elbistan").sum())
+para(f"6 Şubat depremlerinin AFAD ivme kayıtları ESM veritabanından indirildi (Pazarcık {n_p}, "
+     f"Elbistan {n_e} istasyon; en büyük PGA {f2(sm_st.pga_g.max())} g). Her heyelan poligonu için en "
+     "yakın istasyonun kaydı poligonun ShakeMap PGA’sına ölçeklendi ve Newmark kayan blok yöntemi kaydın "
+     "kendisi üzerinde adım adım çözüldü (Jibson 1993). Böylece her poligonun deprem boyunca kaç cm "
+     "kaydığı simüle edildi.")
+pg = nmk["polygons"]
+bullet(f"Poligonların **%{100 * pg['share_triggered_10cm']:.0f}’i** 10 cm eşiğini aşıyor; "
+       f"%{100 * pg['share_pazarcik_dominant']:.0f}’inde belirleyici olan Pazarcık depremi (Kocaman ve ark. "
+       "heyelanların çoğunun ilk depremle tetiklendiğini belirtir).")
+bullet(f"Kaydın kendisiyle hesap, regresyon formülüne göre heyelanları biraz daha iyi ayırıyor "
+       f"(AUC {f3(nmk['auc_dn_timehistory'])} vs {f3(nmk['auc_dn_regression_jibson2007'])}; yanlış alarm "
+       f"%{100 * nmk['false_rate_background_th']:.1f} vs %{100 * nmk['false_rate_background_reg']:.1f}). "
+       "Saf fizik tek başına yine zayıf; ana neden litoloji proxy’sinden gelen dayanım değerleri.")
+bullet("Uygulamada Harita sayfasındaki “Depremi oynat” düğmesiyle poligonların deprem süresince "
+       "renk değiştirdiği animasyon izlenebilir.")
+figure("newmark_th_pilots", "Şekil 8. Pilot yamaçlarda gerçek ivme kaydıyla hesaplanan kalıcı yer değiştirme.", 14.5)
+
 # ============================== 6. UYGULAMA ================================ #
 doc.add_heading("6. İnteraktif Uygulama", level=1)
 para("Model, React (arayüz) + FastAPI (sunucu) tabanlı bir web uygulamasına bağlandı. Başlıca sayfalar:")
 bullet("**Tahmin:** Eğim, yükseklik, bakı, litoloji ve PGA girilir → anlık heyelan olasılığı, Kᵧ ve Dₙ gösterilir. Envanter kimliği veya koordinatla da seçim yapılabilir.")
 bullet("**Kritik PGA:** Seçili bir yamaç için PGA taranır; ML ve Newmark eşikleri aynı grafikte karşılaştırılır.")
-bullet("**Harita:** Duyarlılık, litoloji ve yağış katmanları; haritaya tıklayınca o noktanın tahmini.")
+bullet("**Harita:** Duyarlılık haritası; heyelan poligonları, aktif faylar, 2023 kırılma izleri, AFAD "
+       "istasyonları; PGV, Vs30, faya uzaklık, arazi örtüsü gibi ek katmanlar; tıklanan noktanın tahmini ve "
+       "deprem boyunca kayma animasyonu.")
 bullet("**Sonuçlar:** Model karşılaştırması, Kritik PGA belirsizliği, tasarım tablosu, FEM sonuçları ve tüm figürler.")
 para("Çalıştırma: ./run_app.sh → http://localhost:5173 · Tüm analiz: ./run_pipeline.sh", color=GRAY, size=10)
 
@@ -436,23 +473,25 @@ table(["Konu", "Sürüm 1 (Temmuz 2026)", "Sürüm 2 (Ekim 2026)"], [
     ["Değerlendirme", "Rastgele poligon ayrımı; komşu heyelanlar eğitim ve testte birlikte",
      "Mekânsal blok doğrulama (25 km bloklar, 5 kat)"],
     ["ROC-AUC", "0,963 (iyimser)",
-     f"{f3(cv['roc_auc']['mean'])} ± {f3(cv['roc_auc']['std'])} (aynı model eski yöntemle {f3(ref.get('roc_auc'))})"],
+     f"{f3(cv['roc_auc']['mean'])} ± {f3(cv['roc_auc']['std'])} (katmanlar dahil; katmansız PINN v2 eski yöntemle {f3(ref.get('roc_auc'))})"],
     ["Fizik kısıtı", "Yalnız düz/zayıf sarsıntı bölgesinde ceza; pratikte etkisiz",
      "Fizik-yolu kısıtı: PGA ve eğim boyunca tutarlılık"],
-    ["Fiziksel tutarlılık", "Örneklerin ~%60’ında PGA ↑ → risk ↓", f"İhlal {pct(M['pinn_v2']['mono_violation_rate']['mean'])}"],
+    ["Fiziksel tutarlılık", "Örneklerin ~%60’ında PGA ↑ → risk ↓", f"İhlal {pct(M[MAIN]['mono_violation_rate']['mean'])}"],
     ["Kritik PGA", "≈ 0,55 g, tek sayı; taramada Dₙ sabit kalıyordu",
      f"{f2(cp['critical_pga_g'])} g ({f2(cp['ensemble_range_g'][0])}–{f2(cp['ensemble_range_g'][1])} g), Dₙ her PGA’da yeniden hesaplanıyor"],
     ["Karşılaştırma", "Yok", "9 model (istatistiksel, ağaç tabanlı, sinir ağı, fizik)"],
     ["FEM", "Kurulu değildi; konturlar temsiliydi", "FEM-SSR çözücüsü, literatür kıyasıyla doğrulandı"],
     ["Ampirik doğrulama", "Görsel karşılaştırma", f"Sayısal: Spearman ρ = {f2(emp['spearman_binned'])}"],
-    ["Yeniden üretilebilirlik", "Metrikler elle girilmişti", "Tek komutla tüm analiz; 19 otomatik test"],
+    ["Ek veri", "Eğim, bakı, yükseklik, PGA, litoloji", "+ pürüzlülük, rölyef, eğrilik, TWI, faya ve dereye uzaklık, Vs30, arazi örtüsü, kil/kum"],
+    ["İvme kayıtları", "Yok (sentetik/regresyon)", "136 gerçek AFAD kaydı; poligon bazında kayma simülasyonu"],
+    ["Yeniden üretilebilirlik", "Metrikler elle girilmişti", "Tek komutla tüm analiz; 21 otomatik test"],
 ], [3.4, 6.2, 7.1], align_right_from=99)
 
 # ============================== 8. KISITLAR ================================ #
 doc.add_heading("8. Bilinen Kısıtlar (Şeffaflık)", level=1)
 para("Bilimsel dürüstlük için mevcut kısıtlar açıkça belirtilir:")
 bullet("**Litoloji bir PROXY’dir:** Resmi MTA jeoloji haritası yerine Macrostrat API kullanıldı "
-       "(~5 km çözünürlük). Dayanım değerleri sınıf ortalamalarıdır. Resmi harita edinilince "
+       "(~5 km çözünürlük; duyarlılık haritasındaki dikdörtgen bloklar bunun izidir). Dayanım değerleri sınıf ortalamalarıdır. Resmi harita edinilince "
        "değiştirilecek; bu, en büyük iyileştirme fırsatıdır.")
 bullet("**Kritik PGA (P = 0,5) örnekleme tasarımına bağlıdır:** Değer belirsizlik aralığıyla ve "
        "duyarlılık analiziyle birlikte verilmiştir (Bölüm 4).")
@@ -465,7 +504,27 @@ para()
 note_box("Özet:", f"Gerçek verilerle beslenen, fizik + yapay zekâ hibrit bir dijital ikiz; eğitimde "
          f"görmediği bölgelerde ROC-AUC {f3(cv['roc_auc']['mean'])} başarımla ve fiziksel olarak "
          f"tutarlı biçimde, dik yamaçların ≈ {f2(cp['critical_pga_g'])} g PGA’da (belirsizlik "
-         f"{f2(cp['ensemble_range_g'][0])}–{f2(cp['ensemble_range_g'][1])} g) heyelan sınıfına geçtiğini ortaya koyar.")
+         f"{f2(cp['ensemble_range_g'][0])}–{f2(cp['ensemble_range_g'][1])} g) heyelan sınıfına geçtiğini; "
+       f"heyelan lehine başlangıcın ise ≈ {f2(cp['onset_lr1_g'])} g olduğunu ortaya koyar.")
+
+doc.add_heading("Kaynaklar", level=1)
+for ref_txt in [
+    "Kocaman S., Çetinkaya S., Tunar Özcan N., Karakaş G., Karakaş V.E., Gökçeoğlu C. (2025). Landslides triggered by the 6 February 2023 Kahramanmaraş earthquakes (Türkiye). Turkish Journal of Earth Sciences 34(1): 47–67. https://doi.org/10.55730/1300-0985.1945",
+    "Li L., Tang B., Cai F., Wei L., Zhu X., Fan D. (2026). Digital Twin Modeling for Landslide Risk Scenarios in Mountainous Regions. Sensors 26: 421. https://doi.org/10.3390/s26020421",
+    "Newmark N.M. (1965). Effects of earthquakes on dams and embankments. Géotechnique 15(2): 139–160.",
+    "Jibson R.W. (1993). Predicting earthquake-induced landslide displacements using Newmark’s sliding block analysis. Transportation Research Record 1411: 9–17.",
+    "Jibson R.W. (2007). Regression models for estimating coseismic landslide displacement. Engineering Geology 91: 209–218.",
+    "Griffiths D.V., Lane P.A. (1999). Slope stability analysis by finite elements. Géotechnique 49(3): 387–403.",
+    "Raissi M., Perdikaris P., Karniadakis G.E. (2019). Physics-informed neural networks. Journal of Computational Physics 378: 686–707.",
+    "Roberts D.R. ve ark. (2017). Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure. Ecography 40: 913–929.",
+    "Luzi L. ve ark. Engineering Strong Motion Database (ESM), v3.0. INGV. https://doi.org/10.13127/esm.3 — AFAD Türkiye Ulusal Kuvvetli Yer Hareketi Ağı, https://doi.org/10.7914/SN/TK",
+    "Styron R., Pagani M. (2020). The GEM Global Active Faults Database. Earthquake Spectra 36(S1): 160–180.",
+    "Zanaga D. ve ark. (2022). ESA WorldCover 10 m 2021 v200. https://doi.org/10.5281/zenodo.7254221",
+    "Poggio L. ve ark. (2021). SoilGrids 2.0. SOIL 7: 217–240.",
+    "Peters S.E., Husson J.M., Czaplewski J. (2018). Macrostrat. Geochemistry, Geophysics, Geosystems 19: 1393–1409.",
+]:
+    p = para(ref_txt, size=9.5, after=3)
+    p.paragraph_format.left_indent = Cm(0.6); p.paragraph_format.first_line_indent = Cm(-0.6)
 
 # ------------------------------------------------------------------ altbilgi
 footer = sec.footer.paragraphs[0]

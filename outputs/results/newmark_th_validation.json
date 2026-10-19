@@ -1,0 +1,17 @@
+{
+  "auc_dn_timehistory": 0.6967,
+  "auc_dn_regression_jibson2007": 0.6915,
+  "hit_rate_landslide_points_th": 0.223,
+  "hit_rate_landslide_points_reg": 0.1869,
+  "false_rate_background_th": 0.0455,
+  "false_rate_background_reg": 0.059,
+  "dominant_event_share_pazarcik": 0.9336,
+  "n_points": 89397,
+  "note": "En yakın AFAD istasyonu kaydı (ESM, MP) ShakeMap PGA'sına ölçeklendi; Kᵧ alt sınırı 0.02 g; iki olaydan büyük Dₙ.",
+  "polygons": {
+    "n_polygons": 2596,
+    "share_triggered_10cm": 0.2122,
+    "median_dn_cm": 0.0,
+    "share_pazarcik_dominant": 0.9353
+  }
+}

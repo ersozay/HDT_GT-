@@ -74,3 +74,14 @@ def results_critical_pga():
 def results_fem():
     """FEM-SSR pilot sonuçları (scripts/02_run_fem.py)."""
     return _read_json(_RESULTS / "fem_pilots.json")
+
+
+@router.get("/results/newmark-sim")
+def results_newmark_sim():
+    """Poligon bazında zaman-tanım Newmark simülasyonu (scripts/13)."""
+    return _read_json(_RESULTS / "newmark_th_polygons.json")
+
+
+@router.get("/results/newmark-sim/validation")
+def results_newmark_sim_validation():
+    return _read_json(_RESULTS / "newmark_th_validation.json")

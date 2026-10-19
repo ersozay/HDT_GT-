@@ -69,9 +69,10 @@ def _style(ax):
 def load_models():
     final = load_checkpoint(MODELS_DIR / "best_model.pt", MODELS_DIR / "scaler.pkl",
                             MODELS_DIR / "threshold.json")
-    folds = [load_checkpoint(p) for p in sorted((MODELS_DIR / "cv_ensemble").glob("fold*.pt"))]
-    if final.meta.get("model_version") != "pinn_v2":
+    ver = final.meta.get("model_version")
+    if ver not in ("pinn_v2", "pinn_v2_L"):
         raise SystemExit("best_model.pt v2 değil — önce scripts/03_train_pinn.py çalıştırın.")
+    folds = [load_checkpoint(p) for p in sorted((MODELS_DIR / "cv_ensemble" / ver).glob("fold*.pt"))]
     return final, folds
 
 

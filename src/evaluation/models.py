@@ -144,6 +144,7 @@ class NeuralModel:
         self.trainer = PINNTrainer(model, loss_fn, cfg)
         self.trainer.metadata = {
             "feat_cols": list(self.feat_cols),
+            "feature_medians": {c: float(np.median(X[:, i])) for i, c in enumerate(self.feat_cols)},
             "model_kind": self.name,
             "scaler": {"mean": self._mean, "std": self._std},
         }

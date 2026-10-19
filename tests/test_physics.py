@@ -53,3 +53,22 @@ def test_newmark_monotone_decreasing_in_ky():
 
 def test_label_threshold_10cm():
     assert list(LandslideLabel(np.array([0.05, 0.10, 0.2]))) == [0, 1, 1]
+
+
+def test_rigid_block_rectangular_pulse_analytic():
+    # Dikdörtgen darbe: a = A (T süre), sonra 0. Kapalı form:
+    #   D = ½·(A − Kᵧ)·A·g·T² / Kᵧ
+    from src.geomechanics.newmark_ts import rigid_block, G
+    A, ky, T, dt = 0.5, 0.2, 0.4, 1e-4
+    acc = np.concatenate([np.full(int(T / dt), A), np.zeros(int(3.0 / dt))])
+    d, _, _ = rigid_block(acc, dt, np.array([ky, 0.6]))
+    assert d[0] == pytest.approx(0.5 * (A - ky) * A * G * T ** 2 / ky, rel=2e-3)
+    assert d[1] == 0.0          # Kᵧ > A → kayma yok
+
+
+def test_rigid_block_monotone_in_scale():
+    from src.geomechanics.newmark_ts import rigid_block_both_directions
+    rng = np.random.RandomState(0)
+    acc = rng.normal(0, 0.15, 4000)
+    d, _, _ = rigid_block_both_directions([acc], 0.01, np.full(3, 0.1), np.array([0.5, 1.0, 2.0]))
+    assert d[0] <= d[1] <= d[2]

@@ -30,6 +30,7 @@ class RegionalStack:
     pga: np.ndarray
     litho: np.ndarray
     valid: np.ndarray
+    layers: dict
     transform: object
     bounds: tuple
     res: float
@@ -51,7 +52,8 @@ def reproject_to_grid(raster_path, dst_transform, dst_w, dst_h, resampling="bili
     import rasterio
     from rasterio.warp import reproject, Resampling
     rs = {"bilinear": Resampling.bilinear, "nearest": Resampling.nearest,
-          "average": Resampling.average, "max": Resampling.max}[resampling]
+          "average": Resampling.average, "max": Resampling.max,
+          "mode": Resampling.mode}[resampling]
     dst = np.full((dst_h, dst_w), np.nan, dtype=np.float32)
     with rasterio.open(raster_path) as src:
         reproject(source=rasterio.band(src, 1), destination=dst,
@@ -79,7 +81,26 @@ def load_regional_stack(res: float = 0.008, bounds=STUDY_BOUNDS) -> RegionalStac
     aspect = np.nan_to_num(aspect, nan=-1.0)
     elevation = np.nan_to_num(elevation, nan=0.0)
     pga = np.clip(np.nan_to_num(pga, nan=0.05), 0.001, 3.0)
-    return RegionalStack(elevation, slope, aspect, pga, litho, valid, transform, bounds, res)
+    return RegionalStack(elevation, slope, aspect, pga, litho, valid,
+                         load_layers(transform, w, h), transform, bounds, res)
+
+
+def load_layers(transform, w, h) -> dict:
+    """data/processed/layers/*.tif katmanlarını ızgaraya alır (yoksa boş sözlük)."""
+    from .feature_matrix import LAYER_RASTERS
+    layer_dir = DATA_PROCESSED / "layers"
+    out = {}
+    for name in LAYER_RASTERS:
+        p = layer_dir / f"{name}.tif"
+        if not p.exists():
+            continue
+        a = reproject_to_grid(p, transform, w, h, "mode" if name == "landcover" else "average")
+        if name == "landcover":
+            a = np.where(np.isfinite(a) & (a > 0), a, 30)
+        else:
+            a = np.where(np.isfinite(a), a, np.nanmedian(a))
+        out[name] = a.astype(np.float32)
+    return out
 
 
 def stack_features(stack: RegionalStack, z_ref: float, pga_override: float | None = None):
@@ -91,6 +112,11 @@ def stack_features(stack: RegionalStack, z_ref: float, pga_override: float | Non
         litho_array=stack.litho, pga_array=pga, u_array=None,
         z_ref=z_ref, include_onehot=True,
     )
+    if stack.layers:
+        from .feature_matrix import derive_layer_features
+        for name, a in stack.layers.items():
+            df[name] = a.ravel()
+        df = derive_layer_features(df)
     return df
 
 

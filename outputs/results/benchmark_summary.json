@@ -392,6 +392,264 @@
         "mean": 0.1242,
         "std": 0.0212
       }
+    },
+    "logreg_L": {
+      "label": "Lojistik regresyon + katmanlar",
+      "roc_auc": {
+        "mean": 0.965,
+        "std": 0.0108
+      },
+      "pr_auc": {
+        "mean": 0.9128,
+        "std": 0.0266
+      },
+      "f1": {
+        "mean": 0.8321,
+        "std": 0.0283
+      },
+      "precision": {
+        "mean": 0.8253,
+        "std": 0.0457
+      },
+      "recall": {
+        "mean": 0.8447,
+        "std": 0.0759
+      },
+      "kappa": {
+        "mean": 0.7645,
+        "std": 0.0353
+      },
+      "brier": {
+        "mean": 0.0681,
+        "std": 0.0107
+      },
+      "roc_auc_steep": {
+        "mean": 0.9026,
+        "std": 0.0185
+      },
+      "mono_violation_rate": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "mono_mean_drop": {
+        "mean": 0.0,
+        "std": 0.0
+      }
+    },
+    "rf_L": {
+      "label": "Random Forest + katmanlar",
+      "roc_auc": {
+        "mean": 0.9664,
+        "std": 0.0089
+      },
+      "pr_auc": {
+        "mean": 0.9149,
+        "std": 0.0232
+      },
+      "f1": {
+        "mean": 0.8358,
+        "std": 0.0231
+      },
+      "precision": {
+        "mean": 0.8331,
+        "std": 0.0223
+      },
+      "recall": {
+        "mean": 0.8398,
+        "std": 0.0456
+      },
+      "kappa": {
+        "mean": 0.7701,
+        "std": 0.0287
+      },
+      "brier": {
+        "mean": 0.0884,
+        "std": 0.0116
+      },
+      "roc_auc_steep": {
+        "mean": 0.9046,
+        "std": 0.0182
+      },
+      "mono_violation_rate": {
+        "mean": 0.1825,
+        "std": 0.066
+      },
+      "mono_mean_drop": {
+        "mean": 0.0129,
+        "std": 0.0038
+      }
+    },
+    "gbm_L": {
+      "label": "Gradient Boosting + katmanlar",
+      "roc_auc": {
+        "mean": 0.9644,
+        "std": 0.0103
+      },
+      "pr_auc": {
+        "mean": 0.9126,
+        "std": 0.0253
+      },
+      "f1": {
+        "mean": 0.828,
+        "std": 0.0219
+      },
+      "precision": {
+        "mean": 0.8068,
+        "std": 0.0285
+      },
+      "recall": {
+        "mean": 0.854,
+        "std": 0.065
+      },
+      "kappa": {
+        "mean": 0.7568,
+        "std": 0.0273
+      },
+      "brier": {
+        "mean": 0.0787,
+        "std": 0.0125
+      },
+      "roc_auc_steep": {
+        "mean": 0.9027,
+        "std": 0.0244
+      },
+      "mono_violation_rate": {
+        "mean": 0.3159,
+        "std": 0.0721
+      },
+      "mono_mean_drop": {
+        "mean": 0.028,
+        "std": 0.0093
+      }
+    },
+    "gbm_mono_L": {
+      "label": "GBM + monoton kısıt + katmanlar",
+      "roc_auc": {
+        "mean": 0.9656,
+        "std": 0.0101
+      },
+      "pr_auc": {
+        "mean": 0.9152,
+        "std": 0.025
+      },
+      "f1": {
+        "mean": 0.8334,
+        "std": 0.0226
+      },
+      "precision": {
+        "mean": 0.8263,
+        "std": 0.0317
+      },
+      "recall": {
+        "mean": 0.844,
+        "std": 0.0599
+      },
+      "kappa": {
+        "mean": 0.7662,
+        "std": 0.0283
+      },
+      "brier": {
+        "mean": 0.0747,
+        "std": 0.0114
+      },
+      "roc_auc_steep": {
+        "mean": 0.9063,
+        "std": 0.0198
+      },
+      "mono_violation_rate": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "mono_mean_drop": {
+        "mean": 0.0,
+        "std": 0.0
+      }
+    },
+    "mlp_L": {
+      "label": "MLP (fiziksiz) + katmanlar",
+      "roc_auc": {
+        "mean": 0.9643,
+        "std": 0.013
+      },
+      "pr_auc": {
+        "mean": 0.9116,
+        "std": 0.031
+      },
+      "f1": {
+        "mean": 0.8289,
+        "std": 0.0406
+      },
+      "precision": {
+        "mean": 0.851,
+        "std": 0.0378
+      },
+      "recall": {
+        "mean": 0.8115,
+        "std": 0.0757
+      },
+      "kappa": {
+        "mean": 0.7637,
+        "std": 0.0515
+      },
+      "brier": {
+        "mean": 0.0799,
+        "std": 0.0085
+      },
+      "roc_auc_steep": {
+        "mean": 0.9086,
+        "std": 0.021
+      },
+      "mono_violation_rate": {
+        "mean": 0.0025,
+        "std": 0.0035
+      },
+      "mono_mean_drop": {
+        "mean": 0.0023,
+        "std": 0.0029
+      }
+    },
+    "pinn_v2_L": {
+      "label": "PINN v2 (önerilen) + katmanlar",
+      "roc_auc": {
+        "mean": 0.9653,
+        "std": 0.0133
+      },
+      "pr_auc": {
+        "mean": 0.9134,
+        "std": 0.0283
+      },
+      "f1": {
+        "mean": 0.8288,
+        "std": 0.0423
+      },
+      "precision": {
+        "mean": 0.8557,
+        "std": 0.0322
+      },
+      "recall": {
+        "mean": 0.8085,
+        "std": 0.0876
+      },
+      "kappa": {
+        "mean": 0.7642,
+        "std": 0.0519
+      },
+      "brier": {
+        "mean": 0.0776,
+        "std": 0.0088
+      },
+      "roc_auc_steep": {
+        "mean": 0.9082,
+        "std": 0.0216
+      },
+      "mono_violation_rate": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "mono_mean_drop": {
+        "mean": 0.0,
+        "std": 0.0
+      }
     }
   },
   "reference_polygon_split_pinn_v2": {

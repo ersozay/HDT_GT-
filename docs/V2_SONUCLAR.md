@@ -7,6 +7,121 @@ giderildiğini ve yeni sayısal sonuçları özetler. Tüm sayılar
 `outputs/results/` altındaki JSON/CSV dosyalarından gelir ve
 `./run_pipeline.sh` ile yeniden üretilebilir.
 
+
+---
+
+## 0. Güncelleme (19 Ekim 2026): açık kaynak katmanlar, gerçek ivme kayıtları, kayma simülasyonu
+
+Bu bölüm aşağıdaki v2 sonuçlarının üzerine eklenen çalışmayı özetler. Nihai
+model artık **PINN v2 + açık katmanlar** (`pinn_v2_L`, 54 öznitelik).
+
+### 0.1 Yeni veri katmanları (tamamı açık kaynak, `scripts/12_build_layers.py`)
+
+| Katman | Kaynak | Tek başına AUC | Not |
+|---|---|---|---|
+| Arazi pürüzlülük indeksi (TRI) | Copernicus DEM | **0,920** | eğimden (0,898) daha ayırt edici |
+| Yerel rölyef (~1 km) | Copernicus DEM | 0,884 | |
+| Vs30 | USGS ShakeMap | 0,847 | topoğrafyadan türetilmiş Vs30 |
+| 2023 kırılmasına uzaklık | USGS rupture.json | 0,801 | heyelanlarda medyan 10,5 km — **modelde yok**, olaya özgü |
+| Aktif faya uzaklık | GEM Global Active Faults | 0,765 | heyelanlarda medyan **7,15 km** — Kocaman (2025): ort. 7 km |
+| TWI, dereye uzaklık | DEM + pysheds | 0,748 / 0,590 | |
+| Arazi örtüsü | ESA WorldCover 2021 | 0,697 | tarım alanında heyelan oranı ≈ %0 |
+| Kil / kum (15–30 cm) | ISRIC SoilGrids 2.0 | 0,596 / 0,637 | |
+| PGV, MMI | USGS ShakeMap | 0,78 / 0,79 | **modelde yok**, olaya özgü |
+
+Olaya özgü sarsıntı göstergeleri (PGV, MMI, 2023 kırılmasına uzaklık) bilinçli
+olarak modele alınmadı: Kritik PGA taramasında PGA değişirken bunlar sabit
+kalacağı için sarsıntı etkisini PGA'dan "çalarlardı". Haritada analiz katmanı
+olarak sunulurlar.
+
+Litoloji açık kaynaktan iyileştirilemedi: Macrostrat bu bölgede yalnız 1:5 M
+harita sunuyor. Duyarlılık haritasındaki dikdörtgen bloklar bu ~5 km'lik proxy'nin
+izidir; MTA (1:100 000 / 1:500 000) ya da Kocaman ve ark.'nın 27 birimli haritası
+en büyük kalan iyileştirme fırsatıdır.
+
+### 0.2 Karşılaştırma (mekânsal blok CV, 5 kat)
+
+| Model | ROC-AUC | Dik arazi AUC | F1 | Brier | Fizik ihlali |
+|---|---|---|---|---|---|
+| PINN v2 | 0,947 ± 0,015 | 0,887 | 0,783 | 0,097 | %0,8 |
+| **PINN v2 + katmanlar** | **0,965 ± 0,013** | **0,908** | **0,829** | **0,078** | **%0,0** |
+| GBM + monoton + katmanlar | 0,966 ± 0,010 | 0,906 | 0,833 | 0,075 | %0,0 |
+| GBM + katmanlar | 0,964 ± 0,010 | 0,903 | 0,828 | 0,079 | %31,6 |
+| Random Forest + katmanlar | 0,966 ± 0,009 | 0,905 | 0,836 | 0,088 | %18,2 |
+| Lojistik regresyon + katmanlar | 0,965 ± 0,011 | 0,903 | 0,832 | 0,068 | %0,0 |
+
+Nihai model (ayrık test blokları): AUC 0,965, dik arazi 0,911, F1 0,837,
+Kappa 0,777, Brier 0,072, ihlal %0,07.
+
+### 0.3 Kritik PGA (nihai model)
+
+| Tanım | Değer |
+|---|---|
+| P = 0,5 (6 model ortalama eğrisi) | **0,62 g** (model aralığı 0,49–0,75 g) |
+| Başlangıç, LR = 1 | **0,093 g** |
+| Ampirik başlangıç, gözlenen FR = 1 | **0,085 g** |
+| Örnekleme oranı 1 / 1,5 / 2,5 → P = 0,5 | 0,45 / 0,45 / 0,74 g |
+
+**En sağlam bulgu:** heyelan lehine başlangıç eşiği (LR = 1 ≈ 0,09 g) envanterden
+bağımsız hesaplanan ampirik değerle (FR = 1 ≈ 0,085 g) örtüşüyor. P = 0,5
+düzeyindeki değer ise hem modele (v2'de 0,38 g, katmanlı modelde 0,62 g) hem
+örnekleme oranına duyarlı; tezde aralık olarak verilmeli.
+
+### 0.4 Gerçek ivme kayıtları ve kayma simülasyonu
+
+- **Kayıtlar** (`scripts/11_fetch_strong_motion.py`): ESM v3.0 (INGV/ORFEUS)
+  üzerinden AFAD TK ağının işlenmiş (MP) kayıtları — Pazarcık 69, Elbistan 67
+  istasyon. Token gerekmez. En büyük PGA 2,25 g (TK.4614 Pazarcık).
+  Atıf: ESM https://doi.org/10.13127/esm.3 ; AFAD TK ağı https://doi.org/10.7914/SN/TK
+- **Zaman-tanım Newmark** (`src/geomechanics/newmark_ts.py`, Jibson 1993):
+  analitik dikdörtgen darbe çözümüyle binde 2 içinde doğrulandı.
+- **Poligon simülasyonu** (`scripts/13_newmark_simulation.py`): her poligon
+  için en yakın istasyon kaydı ShakeMap PGA'sına ölçeklenip iki depremle ayrı
+  ayrı çözüldü. Poligonların %21'i 10 cm'yi aşıyor; %94'ünde Pazarcık depremi
+  belirleyici (Kocaman ve ark.: heyelanların çoğu ilk depremle).
+- **Kayıt vs regresyon:** heyelan/arka plan ayrımı AUC 0,697 (zaman-tanım) vs
+  0,692 (Jibson 2007); heyelan noktalarında 10 cm'yi aşma oranı %22,3 vs %18,7,
+  arka planda yanlış alarm %4,6 vs %5,9. Saf fizik tek başına zayıf kalıyor;
+  bunun ana nedeni Kᵧ'nin litoloji proxy'sine dayanması.
+- Uygulamada **Harita → Kayma Simülasyonu → Depremi oynat** ile poligonların
+  deprem boyunca renk değiştirdiği animasyon izlenebilir.
+
+### 0.5 Harita sayfası
+
+Yeni katmanlar: Kocaman (2025) envanter poligonları, aktif faylar (GEM),
+6 Şubat 2023 kırılma izleri (USGS), AFAD ivme istasyonları (ESM) ve seçilebilir
+ek rasterlar (PGV, MMI, Vs30, kırılmaya/faya/dereye uzaklık, TRI, rölyef, TWI,
+kil, arazi örtüsü) lejantlarıyla. Noktaya tıklayınca faya uzaklık, Vs30, PGV,
+pürüzlülük ve kil oranı da gösterilir.
+
+### 0.6 Veri bütünlüğü uyarısı
+
+`~/Downloads/Kahramanmaras_2023_Landslides_QGIS.zip` içindeki GeoPackage'ın
+**poligon geometrileri gerçek** (Kocaman envanteriyle birebir), ancak
+**öznitelikleri uydurmadır**: eğim, yükseklik, PGA ve faya uzaklık değerlerinin
+gerçek rasterlarla sıra korelasyonu ≈ 0 (0,03; −0,01; 0,01; 0,01). Litoloji,
+heyelan türü, risk skoru sütunları da gerçek veriye dayanmıyor; "Fault_Lines"
+katmanı üç noktalı şematik çizgilerdir. Bu dosya tezde veya uygulamada
+**kullanılmamalı**. Pilot QGIS projesi (`ID1327_ID1353_Geotechnical_Pro.qgz`)
+ise yalnızca referans verir; içindeki GeoPackage diskte bulunamadı.
+
+### 0.7 Referanslar (eklenen)
+
+- Kocaman S. ve ark. (2025). Landslides triggered by the 6 February 2023
+  Kahramanmaraş earthquakes (Türkiye). Turkish J. Earth Sci. 34(1): 47–67.
+  https://doi.org/10.55730/1300-0985.1945
+- Li L. ve ark. (2026). Digital Twin Modeling for Landslide Risk Scenarios in
+  Mountainous Regions. Sensors 26: 421. https://doi.org/10.3390/s26020421 —
+  bizim FEM kesitimiz de onlarınki gibi H = 20 m; onların "topuktan 1/10
+  yükseklikte duyarlı bölge" bulgusu FEM-SSR'deki topuk yoğunlaşmasıyla uyumlu.
+- Jibson R.W. (1993). Transp. Res. Rec. 1411: 9–17.
+- Allen T.I. & Wald D.J. (2009) / Wald & Allen (2007) — topoğrafik Vs30 (ShakeMap).
+- Styron R. & Pagani M. (2020). The GEM Global Active Faults Database. Earthquake Spectra 36(S1).
+- Zanaga D. ve ark. (2022). ESA WorldCover 10 m 2021 v200.
+- Poggio L. ve ark. (2021). SoilGrids 2.0. SOIL 7: 217–240.
+- Riley S.J. ve ark. (1999). Terrain ruggedness index. Intermountain J. Sci. 5.
+- Zevenbergen L.W. & Thorne C.R. (1987). Earth Surf. Process. Landf. 12: 47–56.
+
 ---
 
 ## 1. v1'de tespit edilen sorunlar

@@ -43,6 +43,7 @@ SLOPE_RASTER = DATA_PROCESSED / "slope_deg.tif"
 ASPECT_RASTER = DATA_PROCESSED / "aspect_deg.tif"
 SUSC_RASTER = DATA_PROCESSED / "susceptibility_pinn.tif"
 RAINFALL_RASTER = DATA_RAW / "rainfall_chirps.tif"
+LAYER_DIR = DATA_PROCESSED / "layers"
 
 
 class LandslideModel:
@@ -68,6 +69,9 @@ class LandslideModel:
         self._feat_cols = lm.feat_cols
         self._mean = lm.mean
         self._std = lm.std
+        self._imputer = lm.meta.get("layer_imputer")
+        from src.data_engineering.feature_matrix import LAYER_FEATURES
+        self.uses_layers = any(c in LAYER_FEATURES for c in self._feat_cols)
 
         self._overlay_cache: bytes | None = None
         self._litho_overlay_cache: bytes | None = None
@@ -80,20 +84,43 @@ class LandslideModel:
     # ------------------------------------------------------------------ #
     # Çekirdek tahmin
     # ------------------------------------------------------------------ #
-    def _features(self, slope, elevation, aspect, litho_id, pga, z_ref):
+    def _layer_values(self, slope, lat=None, lon=None) -> dict:
+        """Ham katman değerleri: koordinat varsa rasterdan, yoksa eğim sınıfı medyanı."""
+        from src.data_engineering.feature_matrix import LAYER_RASTERS
+        vals = {}
+        if self._imputer:
+            bins = self._imputer["slope_bins"]
+            b = int(np.clip(np.digitize([slope], bins)[0] - 1, 0, len(bins) - 2))
+            vals = {k: v[b] for k, v in self._imputer["medians"].items()}
+        if lat is not None and lon is not None:
+            for name in LAYER_RASTERS:
+                p = LAYER_DIR / f"{name}.tif"
+                if p.exists():
+                    v = self._sample(p, lon, lat, default=np.nan)
+                    if np.isfinite(v) and not (name == "landcover" and v <= 0):
+                        vals[name] = float(v)
+        return vals
+
+    def _features(self, slope, elevation, aspect, litho_id, pga, z_ref, lat=None, lon=None):
         a = lambda v: np.array([[v]], dtype=float)
         df, _ = build_feature_matrix(
             elevation_m=a(elevation), slope_deg=a(slope), aspect_deg=a(aspect),
             litho_array=np.array([[int(litho_id)]]), pga_array=a(pga),
             u_array=None, z_ref=z_ref, include_onehot=True,
         )
+        if self.uses_layers:
+            from src.data_engineering.feature_matrix import derive_layer_features
+            for k, v in self._layer_values(slope, lat, lon).items():
+                df[k] = v
+            df = derive_layer_features(df)
         X = df[self._feat_cols].values.astype(np.float32)
         return df, X
 
-    def predict_point(self, *, slope, elevation, aspect, litho_id, pga, z_ref=Z_REF_M) -> dict:
+    def predict_point(self, *, slope, elevation, aspect, litho_id, pga, z_ref=Z_REF_M,
+                      lat=None, lon=None) -> dict:
         """Tek yamaç için heyelan olasılığı, Ky ve Dn döndürür."""
         torch = self._torch
-        df, X = self._features(slope, elevation, aspect, litho_id, pga, z_ref)
+        df, X = self._features(slope, elevation, aspect, litho_id, pga, z_ref, lat, lon)
         Xn = (X - self._mean) / self._std
         with self._lock, torch.no_grad():
             p = float(self.model(torch.tensor(Xn, dtype=torch.float32)).numpy().ravel()[0])
@@ -121,6 +148,11 @@ class LandslideModel:
             litho_array=np.full((1, n), int(litho_id)), pga_array=grid.reshape(1, n),
             u_array=None, z_ref=z_ref, include_onehot=True,
         )
+        if self.uses_layers:
+            from src.data_engineering.feature_matrix import derive_layer_features
+            for k, v in self._layer_values(slope).items():
+                df[k] = v
+            df = derive_layer_features(df)
         Xn = (df[self._feat_cols].values.astype(np.float32) - self._mean) / self._std
         with self._lock, torch.no_grad():
             probs = self.model(torch.tensor(Xn, dtype=torch.float32)).numpy().ravel()
@@ -173,7 +205,10 @@ class LandslideModel:
 
         in_bounds = bool(elevation > 0 and pga > 0.02)
         res = self.predict_point(slope=slope, elevation=elevation, aspect=aspect,
-                                 litho_id=litho_id, pga=pga)
+                                 litho_id=litho_id, pga=pga, lat=lat, lon=lon)
+        if self.uses_layers:
+            lv = self._layer_values(slope, lat, lon)
+            res["layers"] = {k: round(float(v), 3) for k, v in lv.items()}
         res.update({
             "lat": lat, "lon": lon, "in_bounds": in_bounds,
             "slope": slope, "elevation": elevation, "aspect": aspect,

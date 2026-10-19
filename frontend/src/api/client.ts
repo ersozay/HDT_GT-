@@ -35,6 +35,37 @@ export interface LatLonResult extends PointResult {
   pga: number;
   litho_id: number;
   litho_name: string;
+  layers?: Record<string, number>;
+}
+
+export interface MapLayerInfo {
+  id: string;
+  title: string;
+  unit: string;
+  source: string;
+  categorical: boolean;
+}
+
+export interface MapLayerMeta extends MapLayerInfo {
+  bounds: [[number, number], [number, number]];
+  vmin?: number;
+  vmax?: number;
+  gradient?: string[];
+  legend?: { code: number; label: string; color: string }[];
+}
+
+export interface NewmarkSim {
+  times_s: number[];
+  polygon_ids: number[];
+  final_dn_cm: Record<string, number>;
+  event: Record<string, string>;
+  ky_g: Record<string, number>;
+  pga_g: Record<string, number>;
+  station: Record<string, string>;
+  station_dist_km: Record<string, number>;
+  history_cm: number[][];
+  dn_threshold_cm: number;
+  summary: { n_polygons: number; share_triggered_10cm: number; median_dn_cm: number; share_pazarcik_dominant: number };
 }
 
 export interface MapMeta {
@@ -254,4 +285,11 @@ export const api = {
   overlayUrl: () => `/api/map/overlay.png`,
   lithologyOverlayUrl: () => `/api/map/lithology.png`,
   rainfallOverlayUrl: () => `/api/map/rainfall.png`,
+  newmarkSim: () => get<NewmarkSim>("/api/results/newmark-sim"),
+  mapLayers: () => get<MapLayerInfo[]>("/api/map/layers"),
+  mapLayerMeta: (id: string) => get<MapLayerMeta>(`/api/map/layer/${id}/meta`),
+  mapLayerUrl: (id: string) => `/api/map/layer/${id}.png`,
+  inventoryGeojson: () => get<GeoJSON.FeatureCollection>("/api/map/inventory.geojson"),
+  faultsGeojson: () => get<GeoJSON.FeatureCollection>("/api/map/faults.geojson"),
+  stationsGeojson: () => get<GeoJSON.FeatureCollection>("/api/map/stations.geojson"),
 };

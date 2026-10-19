@@ -23,7 +23,7 @@ Protokol
   outputs/results/benchmark_folds.csv      — kat × model metrikleri
   outputs/results/benchmark_summary.json   — ortalama ± std
   outputs/results/oof_pinn_v2.parquet      — katlar-dışı tahminler
-  outputs/models/cv_ensemble/fold{k}.pt     — pinn_v2 kat modelleri (belirsizlik)
+  outputs/models/cv_ensemble/<model>/fold{k}.pt — PINN kat modelleri (belirsizlik)
   outputs/figures/benchmark_auc.png, benchmark_consistency.png,
   outputs/figures/benchmark_pga_response.png
 
@@ -42,7 +42,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import DATA_PROCESSED, FIGURES_DIR, MODELS_DIR, OUTPUTS_DIR, ensure_dirs
-from src.data_engineering.feature_matrix import load_feature_table, MODEL_FEATURES, LITHO_ONEHOT_COLS
+from src.data_engineering.feature_matrix import (load_feature_table, MODEL_FEATURES,
+                                                 MODEL_FEATURES_V3, LITHO_ONEHOT_COLS)
 from src.evaluation.spatial_cv import (
     assign_spatial_blocks, spatial_folds, inner_validation_split, fold_summary,
 )
@@ -54,6 +55,8 @@ from src.evaluation.metrics import (
 RESULTS_DIR = OUTPUTS_DIR / "results"
 ALL_MODELS = ["newmark", "logreg", "rf", "gbm", "gbm_mono",
               "mlp", "pinn_v1", "pinn_v2", "pinn_v2_nophysfeat"]
+# "_L" soneki: aynı model + açık kaynak ek katmanlar (v3 öznitelikleri, scripts/12)
+LAYER_MODELS = ["logreg_L", "rf_L", "gbm_L", "gbm_mono_L", "mlp_L", "pinn_v2_L"]
 
 # Fizik öznitelikleri çıkarılmış (yalnız veri) öznitelik kümesi — ablasyon.
 # PGA ve eğim kalır (fizik-yolu kısıtı bunlar üzerinden kurulur); Ky, log Dn ve
@@ -68,9 +71,15 @@ LABELS = {
     "pinn_v1": "PINN v1", "pinn_v2": "PINN v2 (önerilen)",
     "pinn_v2_nophysfeat": "PINN v2 – fizik girdisiz",
 }
+for _k in list(LABELS):
+    LABELS[_k + "_L"] = LABELS[_k] + " + katmanlar"
 
 
 def _model_and_features(name, epochs):
+    if name.endswith("_L"):
+        base = name[:-2]
+        kw = {"epochs": epochs} if base in ("mlp", "pinn_v1", "pinn_v2") else {}
+        return make_model(base, MODEL_FEATURES_V3, **kw), MODEL_FEATURES_V3
     if name == "pinn_v2_nophysfeat":
         # Fizik-yolu örnekleyicisi Ky/Dn sütunlarına ihtiyaç duyar; bu ablasyonda
         # yalnız stabilite cezası + MLP kullanılır (pinn_v1 eşdeğeri, fizik girdisiz).
@@ -93,7 +102,7 @@ def run(models, n_folds=5, epochs=120, block_deg=0.25, n_mono=2000):
     print(f"Örnek: {len(df):,} | blok: {len(np.unique(blocks))} ({block_deg}°)")
     print(fold_summary(y, blocks, folds).to_string(index=False))
 
-    rows, oof = [], np.full(len(df), np.nan)
+    rows, oof = [], {}
     curves = {}   # model → (n_folds, n_grid) dik test hücrelerinde ort. P
     rng = np.random.RandomState(0)
 
@@ -120,12 +129,14 @@ def run(models, n_folds=5, epochs=120, block_deg=0.25, n_mono=2000):
                   f"steep={met.get('roc_auc_steep', float('nan')):.3f} "
                   f"F1={met['f1']:.3f} mono={met.get('mono_violation_rate', float('nan')):.3f} "
                   f"({met['fit_s']}s)", flush=True)
-            if name == "pinn_v2":
-                oof[te] = p_te
+            if name in ("pinn_v2", "pinn_v2_L"):
+                oof.setdefault(name, np.full(len(df), np.nan))[te] = p_te
                 import torch
+                d = ens_dir / name
+                d.mkdir(parents=True, exist_ok=True)
                 ck = m.trainer.metadata | {"model_state": m.model.state_dict(),
-                                           "threshold": thr, "fold": k}
-                torch.save(ck, ens_dir / f"fold{k}.pt")
+                                           "threshold": thr, "fold": k, "model_version": name}
+                torch.save(ck, d / f"fold{k}.pt")
 
     res = pd.DataFrame(rows)
     # Yalnız seçilen modeller yeniden koşulduysa önceki diğer sonuçlar korunur
@@ -138,7 +149,7 @@ def run(models, n_folds=5, epochs=120, block_deg=0.25, n_mono=2000):
     if prev_curves.exists():
         old = np.load(prev_curves, allow_pickle=True).item()
         curves = {**{k: list(v) for k, v in old.items() if k not in models}, **curves}
-    models_all = [m for m in ALL_MODELS if m in set(res.model)]
+    models_all = [m for m in ALL_MODELS + LAYER_MODELS if m in set(res.model)]
 
     # v1 protokolü (rastgele poligon ayrımı) — iyimserlik karşılaştırması
     optimistic = None
@@ -151,10 +162,10 @@ def run(models, n_folds=5, epochs=120, block_deg=0.25, n_mono=2000):
     summary = _summarize(res, models_all, optimistic, block_deg, n_folds)
     (RESULTS_DIR / "benchmark_summary.json").write_text(
         json.dumps(summary, indent=2, ensure_ascii=False))
-    if "pinn_v2" in models:
-        pd.DataFrame({"oof_p": oof, "label": y, "block": blocks,
+    for name, o in oof.items():
+        pd.DataFrame({"oof_p": o, "label": y, "block": blocks,
                       "lon": df["lon"], "lat": df["lat"]}).to_parquet(
-            RESULTS_DIR / "oof_pinn_v2.parquet", index=False)
+            RESULTS_DIR / f"oof_{name}.parquet", index=False)
     np.save(RESULTS_DIR / "pga_curves.npy",
             {k: np.array(v) for k, v in curves.items()}, allow_pickle=True)
 

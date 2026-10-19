@@ -56,6 +56,45 @@ MONOTONE_FEATURES = {"pga_g": +1, "log_dn_cm": +1, "slope_deg": +1, "ky_g": -1}
 
 DN_LOG_OFFSET_CM = 0.1
 
+# --------------------------------------------------------------------------- #
+# v3: açık kaynak ek katmanlar (scripts/12_build_layers.py → data/processed/layers)
+# --------------------------------------------------------------------------- #
+# Ham katmanlar (raster adı). Yalnız STATİK koşullandırıcılar modele girer;
+# olaya özgü sarsıntı göstergeleri (PGV, MMI, 2023 kırılmasına uzaklık) modelde
+# yer almaz — aksi halde Kritik PGA taramasında PGA değişirken bunlar sabit kalır
+# ve sarsıntı etkisi PGA'dan "çalınır". Bu katmanlar harita/analiz içindir.
+LAYER_RASTERS = ["tri_m", "relief_1km_m", "curv_profile", "curv_plan", "twi",
+                 "dist_stream_km", "dist_fault_km", "vs30", "clay_pct", "sand_pct",
+                 "landcover", "dist_rupture_km", "pgv_cms", "mmi"]
+
+LANDCOVER_ONEHOT = {"lc_tree": (10,), "lc_shrub": (20,), "lc_grass": (30,), "lc_crop": (40,),
+                    "lc_built": (50,), "lc_bare": (60,), "lc_water": (70, 80, 90, 95, 100)}
+
+LAYER_FEATURES = ["log_tri", "log_relief", "curv_profile", "curv_plan", "twi",
+                  "log_dist_stream", "log_dist_fault", "vs30", "clay_pct", "sand_pct"] + list(LANDCOVER_ONEHOT)
+
+MODEL_FEATURES_V3 = MODEL_FEATURES + LAYER_FEATURES
+
+
+def derive_layer_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Ham katman sütunlarından model özniteliklerini türetir (log dönüşümleri, one-hot)."""
+    df = df.copy()
+    lg = lambda c: np.log1p(np.clip(df[c].to_numpy(float), 0, None))
+    df["log_tri"] = lg("tri_m")
+    df["log_relief"] = lg("relief_1km_m")
+    df["log_dist_stream"] = lg("dist_stream_km")
+    df["log_dist_fault"] = lg("dist_fault_km")
+    for c in ("curv_profile", "curv_plan"):
+        df[c] = np.clip(df[c].to_numpy(float), -3, 3)
+    lc = df["landcover"].to_numpy()
+    for name, codes in LANDCOVER_ONEHOT.items():
+        df[name] = np.isin(lc, codes).astype(np.float32)
+    return df
+
+
+def has_layer_columns(df: pd.DataFrame) -> bool:
+    return all(c in df.columns for c in LAYER_RASTERS[:11])
+
 
 def build_feature_matrix(
     elevation_m: np.ndarray,
@@ -154,8 +193,11 @@ def ensure_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_feature_table(path) -> pd.DataFrame:
-    """Eğitim öznitelik tablosunu (parquet) yükler ve v2 sütunlarını garanti eder."""
-    return ensure_derived_columns(pd.read_parquet(path))
+    """Eğitim öznitelik tablosunu (parquet) yükler; v2 ve (varsa) v3 sütunlarını türetir."""
+    df = ensure_derived_columns(pd.read_parquet(path))
+    if has_layer_columns(df):
+        df = derive_layer_features(df)
+    return df
 
 
 def add_morphometric_features(

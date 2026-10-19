@@ -22,13 +22,15 @@ import argparse
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import (
     DATA_PROCESSED, FIGURES_DIR, MODELS_DIR, OUTPUTS_DIR, PROJECT_ROOT, ensure_dirs,
 )
-from src.data_engineering.feature_matrix import load_feature_table, MODEL_FEATURES
+from src.data_engineering.feature_matrix import (load_feature_table, MODEL_FEATURES,
+                                                 MODEL_FEATURES_V3, LAYER_RASTERS)
 from src.evaluation.spatial_cv import assign_spatial_blocks, spatial_folds, inner_validation_split
 from src.evaluation.models import NeuralModel
 from src.evaluation.metrics import (
@@ -39,12 +41,32 @@ from src.visualization.training_plots import plot_training_history, plot_confusi
 BLOCK_DEG = 0.25
 
 
-def run(epochs: int = 150, lambda_mono: float = 12.0, seed: int = 42):
+SLOPE_BINS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 90]
+
+
+def layer_imputer(df):
+    """Elle girilen noktalar için ham katman değerlerini eğim sınıfına göre doldurur."""
+    idx = np.clip(np.digitize(df["slope_deg"].to_numpy(), SLOPE_BINS) - 1, 0, len(SLOPE_BINS) - 2)
+    med = {}
+    for c in LAYER_RASTERS:
+        if c in df.columns:
+            v = df[c].to_numpy(float)
+            if c == "landcover":
+                med[c] = [float(pd.Series(v[idx == b]).mode().iloc[0]) if (idx == b).any() else 30.0
+                          for b in range(len(SLOPE_BINS) - 1)]
+            else:
+                med[c] = [float(np.median(v[idx == b])) if (idx == b).any() else float(np.median(v))
+                          for b in range(len(SLOPE_BINS) - 1)]
+    return {"slope_bins": SLOPE_BINS, "medians": med}
+
+
+def run(epochs: int = 150, lambda_mono: float = 12.0, seed: int = 42, features: str = "v3"):
     ensure_dirs()
     df = load_feature_table(DATA_PROCESSED / "feature_matrix.parquet")
     y = df["label"].to_numpy(int)
     slope = df["slope_deg"].to_numpy(float)
-    feat_cols = list(MODEL_FEATURES)
+    feat_cols = list(MODEL_FEATURES_V3 if features == "v3" else MODEL_FEATURES)
+    version = "pinn_v2_L" if features == "v3" else "pinn_v2"
     X = df[feat_cols].to_numpy(np.float32)
 
     # Mekânsal ayrım: 5 bloğun 1'i test (%20), kalan blokların %15'i doğrulama
@@ -76,7 +98,8 @@ def run(epochs: int = 150, lambda_mono: float = 12.0, seed: int = 42):
     import torch
     ck_path = MODELS_DIR / "best_model.pt"
     ck = torch.load(ck_path, map_location="cpu", weights_only=False)
-    ck.update({"threshold": thr, "test_metrics": met, "model_version": "pinn_v2",
+    ck.update({"threshold": thr, "test_metrics": met, "model_version": version,
+               "layer_imputer": layer_imputer(df.iloc[tr]) if features == "v3" else None,
                "split": f"mekânsal blok ({BLOCK_DEG}°) train/val/test"})
     torch.save(ck, ck_path)
     scaler = {"mean": m._mean, "std": m._std}
@@ -85,7 +108,7 @@ def run(epochs: int = 150, lambda_mono: float = 12.0, seed: int = 42):
         {"decision_threshold": thr, "selected_on": "validation_f1max (spatial blocks)"}))
 
     shap_order = _shap(m, X[tr], X[te], feat_cols)
-    _write_app_metrics(met, thr, len(df), float(y.mean()), feat_cols, shap_order)
+    _write_app_metrics(met, thr, len(df), float(y.mean()), feat_cols, shap_order, version)
     print("Eğitim tamamlandı.")
 
 
@@ -104,10 +127,15 @@ def _shap(m, X_bg, X_ex, feat_cols, n_bg=300, n_ex=600):
     sv = np.asarray(sv[0] if isinstance(sv, list) else sv).reshape(len(ex), -1)
 
     litho = [i for i, c in enumerate(feat_cols) if c.startswith("litho_")]
-    keep = [i for i in range(len(feat_cols)) if i not in litho]
+    lc = [i for i, c in enumerate(feat_cols) if c.startswith("lc_")]
+    keep = [i for i in range(len(feat_cols)) if i not in litho and i not in lc]
     names = [feat_cols[i] for i in keep] + ["litoloji (one-hot toplam)"]
     sv_g = np.column_stack([sv[:, keep], sv[:, litho].sum(axis=1)])
     x_g = np.column_stack([ex[:, keep], ex[:, litho].argmax(axis=1)])
+    if lc:
+        names.append("arazi örtüsü (one-hot toplam)")
+        sv_g = np.column_stack([sv_g, sv[:, lc].sum(axis=1)])
+        x_g = np.column_stack([x_g, ex[:, lc].argmax(axis=1)])
     plot_shap_summary(sv_g, x_g, names, top_n=len(names),
                       save_path=FIGURES_DIR / "shap_summary.png")
     imp = np.abs(sv_g).mean(axis=0)
@@ -120,15 +148,15 @@ def _shap(m, X_bg, X_ex, feat_cols, n_bg=300, n_ex=600):
     return order
 
 
-def _write_app_metrics(met, thr, n, pos_rate, feat_cols, shap_order):
+def _write_app_metrics(met, thr, n, pos_rate, feat_cols, shap_order, version="pinn_v2"):
     path = PROJECT_ROOT / "backend" / "metrics.json"
     old = json.loads(path.read_text()) if path.exists() else {}
     bench = OUTPUTS_DIR / "results" / "benchmark_summary.json"
     cv = None
     if bench.exists():
-        cv = json.loads(bench.read_text()).get("models", {}).get("pinn_v2")
+        cv = json.loads(bench.read_text()).get("models", {}).get(version)
     out = {
-        "model_version": "pinn_v2",
+        "model_version": version,
         "roc_auc": round(met["roc_auc"], 3),
         "roc_auc_steep": round(met.get("roc_auc_steep", float("nan")), 3),
         "pr_auc": round(met["pr_auc"], 3),
@@ -151,7 +179,8 @@ def _write_app_metrics(met, thr, n, pos_rate, feat_cols, shap_order):
     }
     if cv:
         out["cv"] = {k: v for k, v in cv.items() if k != "label"}
-    for k in ("critical_pga", "v1_reference"):
+    for k in ("critical_pga", "v1_reference", "critical_pga_p05", "empirical_validation",
+              "neg_ratio_sensitivity"):
         if k in old:
             out[k] = old[k]
     out.setdefault("v1_reference", {
@@ -167,5 +196,7 @@ if __name__ == "__main__":
     ap.add_argument("--epochs", type=int, default=150)
     ap.add_argument("--lambda-mono", type=float, default=12.0)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--features", choices=["v2", "v3"], default="v3",
+                    help="v3 = v2 + açık kaynak katmanlar (scripts/12)")
     a = ap.parse_args()
-    run(a.epochs, a.lambda_mono, a.seed)
+    run(a.epochs, a.lambda_mono, a.seed, a.features)

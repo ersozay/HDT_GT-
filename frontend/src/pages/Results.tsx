@@ -15,13 +15,18 @@ const FIGURES = [
   { key: "training_history", label: "Eğitim Geçmişi", desc: "Kayıp, doğruluk ve fizik ceza bileşenleri" },
   { key: "confusion_matrix", label: "Karışıklık Matrisi", desc: "Mekânsal test bloklarında sınıflandırma" },
   { key: "susceptibility_map_real", label: "Duyarlılık Haritası", desc: "Bölgesel PINN v2 çıktısı" },
+  { key: "newmark_th_pilots", label: "Kayma simülasyonu", desc: "Pilot yamaçlarda gerçek AFAD kayıtlarıyla zaman-tanım Newmark kayması" },
+  { key: "newmark_th_validation", label: "Newmark: kayıt vs regresyon", desc: "Zaman-tanım Newmark ile Jibson (2007) regresyonunun heyelan/arka plan ayrımı" },
   { key: "fem_1353_plastic_strain", label: "FEM · 1353 kayma yüzeyi", desc: "FEM-SSR birikmiş plastik kayma gerinmesi" },
   { key: "fem_1353_displacement", label: "FEM · 1353 mekanizma", desc: "Göçme anındaki artımsal yer değiştirme" },
   { key: "fem_1327_plastic_strain", label: "FEM · 1327 kayma yüzeyi", desc: "Kohezyonsuz kolüvyonda yüzeysel kayma" },
   { key: "pga_fs_curve_ID1353", label: "FS–kₕ · 1353", desc: "Psödo-statik FS ve FEM kritik ivmesi" },
 ];
 
-const ORDER = ["pinn_v2", "gbm_mono", "pinn_v1", "mlp", "gbm", "rf", "logreg", "newmark", "pinn_v2_nophysfeat"];
+const ORDER = [
+  "pinn_v2_L", "gbm_mono_L", "mlp_L", "gbm_L", "rf_L", "logreg_L",
+  "pinn_v2", "gbm_mono", "pinn_v1", "mlp", "gbm", "rf", "logreg", "newmark", "pinn_v2_nophysfeat",
+];
 const f3 = (v?: number | null) => (v == null ? "—" : v.toFixed(3));
 const f2 = (v?: number | null) => (v == null ? "—" : v.toFixed(2));
 
@@ -109,7 +114,7 @@ export default function Results() {
               <tbody>
                 {ORDER.filter((k) => b.models[k]).map((k) => {
                   const m = b.models[k];
-                  const hi = k === "pinn_v2";
+                  const hi = k === (s?.model_version ?? "pinn_v2");
                   const viol = m.mono_violation_rate?.mean;
                   return (
                     <tr
@@ -133,6 +138,8 @@ export default function Results() {
               </tbody>
             </table>
             <p className="mt-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+              "+ katmanlar": açık kaynak ek katmanlar (pürüzlülük, rölyef, eğrilik, TWI, dereye ve faya
+              uzaklık, Vs30, kil/kum, arazi örtüsü) eklenmiş aynı model — tüm modellerde AUC ≈ 0,95 → 0,965.
               Öğrenen modeller benzer ayırma gücüne ulaşır (fark &lt; 1 std); ayırt edici olan fiziksel
               tutarlılıktır. Kısıtsız RF/GBM/MLP örneklerin %56–73'ünde PGA arttıkça heyelan olasılığını
               düşürür — Kritik PGA taraması için kabul edilemez. Fizik kısıtlı modeller (PINN v2, monoton GBM)
