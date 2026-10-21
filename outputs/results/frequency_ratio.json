@@ -1,0 +1,354 @@
+{
+  "note": "Envanter: Kocaman ve ark. (2025), 90 m ızgara. Litoloji FR'si Macrostrat PROXY'sidir (MTA değil) — Kocaman Tablo 4 ile doğrudan karşılaştırılamaz.",
+  "landslide_pixels": 14943,
+  "tables": {
+    "eğim (°)": [
+      {
+        "sinif": "0–5",
+        "alan_%": 55.52,
+        "heyelan_%": 3.11,
+        "FR": 0.06,
+        "piksel": 7583956
+      },
+      {
+        "sinif": "5–10",
+        "alan_%": 15.99,
+        "heyelan_%": 8.14,
+        "FR": 0.51,
+        "piksel": 2183754
+      },
+      {
+        "sinif": "10–15",
+        "alan_%": 10.4,
+        "heyelan_%": 14.25,
+        "FR": 1.37,
+        "piksel": 1421003
+      },
+      {
+        "sinif": "15–20",
+        "alan_%": 7.41,
+        "heyelan_%": 15.98,
+        "FR": 2.16,
+        "piksel": 1011829
+      },
+      {
+        "sinif": "20–25",
+        "alan_%": 5.22,
+        "heyelan_%": 15.49,
+        "FR": 2.97,
+        "piksel": 712545
+      },
+      {
+        "sinif": "25–30",
+        "alan_%": 3.39,
+        "heyelan_%": 14.98,
+        "FR": 4.42,
+        "piksel": 463454
+      },
+      {
+        "sinif": "30–35",
+        "alan_%": 1.49,
+        "heyelan_%": 13.52,
+        "FR": 9.07,
+        "piksel": 203690
+      },
+      {
+        "sinif": "35–40",
+        "alan_%": 0.43,
+        "heyelan_%": 8.63,
+        "FR": 20.2,
+        "piksel": 58388
+      },
+      {
+        "sinif": "40–90",
+        "alan_%": 0.16,
+        "heyelan_%": 5.9,
+        "FR": 35.9,
+        "piksel": 22438
+      }
+    ],
+    "litoloji — Macrostrat PROXY": [
+      {
+        "sinif": "Alüvyon (kuru)",
+        "alan_%": 1.42,
+        "heyelan_%": 0.0,
+        "FR": 0.0,
+        "piksel": 194400
+      },
+      {
+        "sinif": "Kumtaşı (sağlam)",
+        "alan_%": 1.33,
+        "heyelan_%": 2.6,
+        "FR": 1.96,
+        "piksel": 181207
+      },
+      {
+        "sinif": "Kireçtaşı (orta)",
+        "alan_%": 4.08,
+        "heyelan_%": 0.0,
+        "FR": 0.0,
+        "piksel": 558000
+      },
+      {
+        "sinif": "Marn",
+        "alan_%": 0.47,
+        "heyelan_%": 0.0,
+        "FR": 0.0,
+        "piksel": 64800
+      },
+      {
+        "sinif": "Kil (yüksek plastisiteli)",
+        "alan_%": 3.56,
+        "heyelan_%": 7.01,
+        "FR": 1.97,
+        "piksel": 486000
+      },
+      {
+        "sinif": "Silttaşı",
+        "alan_%": 38.29,
+        "heyelan_%": 7.88,
+        "FR": 0.21,
+        "piksel": 5230625
+      },
+      {
+        "sinif": "Bazalt",
+        "alan_%": 3.29,
+        "heyelan_%": 1.42,
+        "FR": 0.43,
+        "piksel": 450000
+      },
+      {
+        "sinif": "Andezit",
+        "alan_%": 11.99,
+        "heyelan_%": 25.67,
+        "FR": 2.14,
+        "piksel": 1638000
+      },
+      {
+        "sinif": "Granit (alterasyonlu)",
+        "alan_%": 4.72,
+        "heyelan_%": 17.06,
+        "FR": 3.61,
+        "piksel": 645175
+      },
+      {
+        "sinif": "Şist",
+        "alan_%": 8.51,
+        "heyelan_%": 13.7,
+        "FR": 1.61,
+        "piksel": 1162800
+      },
+      {
+        "sinif": "Metabazalt / Ofiyolit",
+        "alan_%": 1.74,
+        "heyelan_%": 0.47,
+        "FR": 0.27,
+        "piksel": 237600
+      },
+      {
+        "sinif": "Karışık litoloji / Formasyonsuz",
+        "alan_%": 20.59,
+        "heyelan_%": 24.19,
+        "FR": 1.18,
+        "piksel": 2812450
+      }
+    ],
+    "faya uzaklık (km, GEM)": [
+      {
+        "sinif": "0–2",
+        "alan_%": 6.44,
+        "heyelan_%": 22.48,
+        "FR": 3.49,
+        "piksel": 879343
+      },
+      {
+        "sinif": "2–5",
+        "alan_%": 9.67,
+        "heyelan_%": 22.35,
+        "FR": 2.31,
+        "piksel": 1320397
+      },
+      {
+        "sinif": "5–10",
+        "alan_%": 13.59,
+        "heyelan_%": 15.07,
+        "FR": 1.11,
+        "piksel": 1856858
+      },
+      {
+        "sinif": "10–20",
+        "alan_%": 17.1,
+        "heyelan_%": 26.95,
+        "FR": 1.58,
+        "piksel": 2335708
+      },
+      {
+        "sinif": "20–40",
+        "alan_%": 19.78,
+        "heyelan_%": 12.45,
+        "FR": 0.63,
+        "piksel": 2702375
+      },
+      {
+        "sinif": "40–300",
+        "alan_%": 33.43,
+        "heyelan_%": 0.7,
+        "FR": 0.02,
+        "piksel": 4566376
+      }
+    ],
+    "2023 kırılmasına uzaklık (km)": [
+      {
+        "sinif": "0–2",
+        "alan_%": 1.88,
+        "heyelan_%": 11.91,
+        "FR": 6.32,
+        "piksel": 257297
+      },
+      {
+        "sinif": "2–5",
+        "alan_%": 2.87,
+        "heyelan_%": 14.68,
+        "FR": 5.12,
+        "piksel": 391709
+      },
+      {
+        "sinif": "5–10",
+        "alan_%": 4.99,
+        "heyelan_%": 17.25,
+        "FR": 3.46,
+        "piksel": 681320
+      },
+      {
+        "sinif": "10–20",
+        "alan_%": 9.68,
+        "heyelan_%": 21.45,
+        "FR": 2.22,
+        "piksel": 1322296
+      },
+      {
+        "sinif": "20–40",
+        "alan_%": 19.23,
+        "heyelan_%": 24.36,
+        "FR": 1.27,
+        "piksel": 2627125
+      },
+      {
+        "sinif": "40–300",
+        "alan_%": 61.35,
+        "heyelan_%": 10.35,
+        "FR": 0.17,
+        "piksel": 8381310
+      }
+    ],
+    "yükseklik (m)": [
+      {
+        "sinif": "0–500",
+        "alan_%": 34.27,
+        "heyelan_%": 9.4,
+        "FR": 0.27,
+        "piksel": 4682124
+      },
+      {
+        "sinif": "500–750",
+        "alan_%": 22.6,
+        "heyelan_%": 14.58,
+        "FR": 0.64,
+        "piksel": 3087719
+      },
+      {
+        "sinif": "750–1000",
+        "alan_%": 10.66,
+        "heyelan_%": 24.67,
+        "FR": 2.31,
+        "piksel": 1456819
+      },
+      {
+        "sinif": "1000–1250",
+        "alan_%": 7.52,
+        "heyelan_%": 25.69,
+        "FR": 3.41,
+        "piksel": 1027906
+      },
+      {
+        "sinif": "1250–1500",
+        "alan_%": 8.91,
+        "heyelan_%": 15.7,
+        "FR": 1.76,
+        "piksel": 1217199
+      },
+      {
+        "sinif": "1500–2000",
+        "alan_%": 13.17,
+        "heyelan_%": 9.11,
+        "FR": 0.69,
+        "piksel": 1798914
+      },
+      {
+        "sinif": "2000–4000",
+        "alan_%": 2.86,
+        "heyelan_%": 0.86,
+        "FR": 0.3,
+        "piksel": 390376
+      }
+    ],
+    "arazi örtüsü (ESA WorldCover)": [
+      {
+        "sinif": "Ağaç",
+        "alan_%": 12.83,
+        "heyelan_%": 30.54,
+        "FR": 2.38,
+        "piksel": 1753056
+      },
+      {
+        "sinif": "Çalılık",
+        "alan_%": 0.79,
+        "heyelan_%": 3.04,
+        "FR": 3.83,
+        "piksel": 108378
+      },
+      {
+        "sinif": "Çayır",
+        "alan_%": 38.51,
+        "heyelan_%": 53.22,
+        "FR": 1.38,
+        "piksel": 5260720
+      },
+      {
+        "sinif": "Tarım",
+        "alan_%": 38.27,
+        "heyelan_%": 1.08,
+        "FR": 0.03,
+        "piksel": 5227858
+      },
+      {
+        "sinif": "Yapılaşma",
+        "alan_%": 2.06,
+        "heyelan_%": 0.27,
+        "FR": 0.13,
+        "piksel": 280831
+      },
+      {
+        "sinif": "Çıplak/seyrek",
+        "alan_%": 5.12,
+        "heyelan_%": 11.4,
+        "FR": 2.23,
+        "piksel": 699879
+      },
+      {
+        "sinif": "Su",
+        "alan_%": 2.4,
+        "heyelan_%": 0.45,
+        "FR": 0.19,
+        "piksel": 328215
+      },
+      {
+        "sinif": "Sulak alan",
+        "alan_%": 0.02,
+        "heyelan_%": 0.0,
+        "FR": 0.0,
+        "piksel": 2120
+      }
+    ]
+  }
+}

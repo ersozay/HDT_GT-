@@ -455,6 +455,51 @@ bullet("Uygulamada Harita sayfasındaki “Depremi oynat” düğmesiyle poligon
        "renk değiştirdiği animasyon izlenebilir.")
 figure("newmark_th_pilots", "Şekil 8. Pilot yamaçlarda gerçek ivme kaydıyla hesaplanan kalıcı yer değiştirme.", 14.5)
 
+doc.add_heading("5.7 Envanterin ve Etiketlerin Doğrulanması", level=2)
+para("Modelin öğrendiği heyelan envanterinin (Kocaman ve ark. 2025) güvenilirliği üç yoldan sınandı.")
+para("**Bağımsız yeniden hesaplama.** Makaledeki sayılar kendi verimizle yeniden üretildi: 2.596 poligon, "
+     "en küçük 21,8 m², en büyük 8,9625 km², toplam alan 42,9 km² (makalede 68.309 piksel × 25 m ≈ 42,7 km²), "
+     "ortalama eğim 23,4° (makalede 23,0°) ve arazi örtüsü sıralaması (çayır > ağaç > çıplak) birebir tutuyor. "
+     "Ortalama yükseklik farkı (makalede 1.148 m) piksel ağırlıklandırmasından kaynaklanıyor: tek bir 8,96 km²’lik "
+     "heyelan toplam alanın %21’i; heyelan başına ortalama 864 m, alan ağırlıklı 1.106 m.")
+fr_p = RES / "frequency_ratio.json"
+if fr_p.exists():
+    frj = json.loads(fr_p.read_text())
+    para("**Frekans Oranı (FR).** Kocaman ve ark. yöntemiyle hesaplandı. Litoloji FR’si yalnızca Macrostrat "
+         "PROXY’siyle üretilebildiği için makaledeki MTA tabanlı değerlerle (ör. peridotit 6,70) doğrudan "
+         "karşılaştırılamaz; asıl tablo MTA haritası gelince üretilecek.")
+    rows = []
+    for key in ("eğim (°)", "faya uzaklık (km, GEM)", "2023 kırılmasına uzaklık (km)", "arazi örtüsü (ESA WorldCover)"):
+        for r in frj["tables"].get(key, []):
+            rows.append([key, r["sinif"], f2(r["FR"])])
+    table(["Faktör", "Sınıf", "FR"], rows, [7.0, 5.0, 2.5], font=8.5, align_right_from=2)
+    figure("frequency_ratio", "Şekil 9. Frekans Oranı (kırmızı: FR > 1, heyelana yatkın).", 16.0)
+ln_p = RES / "label_noise.json"
+if ln_p.exists():
+    ln = json.loads(ln_p.read_text())
+    para("**“Heyelan yok” etiketinin kirliliği.** Envanter kar ve gölge nedeniyle eksik olabilir; bu durumda "
+         "“heyelan yok” noktalarının bir kısmı aslında haritalanmamış heyelandır. Negatif noktaların heyelanlara "
+         f"medyan uzaklığı {f2(ln['neg_distance_km']['median'])} km; yalnızca %{100 * ln['neg_distance_km']['share_lt_1km']:.1f}’i "
+         "1 km’den yakın. Dört eğitim varyantı aynı test bölgelerinde karşılaştırıldı:")
+    lab = {"V0_temel": "Temel (≥ 200 m)", "V1_tampon_1km": "Negatifler ≥ 1 km", "V2_tampon_2km": "Negatifler ≥ 2 km",
+           "V3_PU_casus": "PU-casus (%5 şüpheli negatif çıkarıldı)"}
+    rows = []
+    for k, v in ln["variants"].items():
+        c05 = v.get("critical_pga_p05_g"); c1 = v.get("critical_pga_lr1_g")
+        rows.append([lab.get(k, k), f"{f3(v['roc_auc'][0])} ± {f3(v['roc_auc'][1])}", f3(v["roc_auc_steep"][0]),
+                     f"{f2(c05[0])} ± {f2(c05[1])} g" if c05 else "—", f"{f2(c1[0])} ± {f2(c1[1])} g" if c1 else "—"])
+    table(["Eğitim varyantı", "ROC-AUC", "Dik arazi", "Kritik PGA (P=0,5)", "Başlangıç (LR=1)"], rows,
+          [5.6, 2.9, 2.1, 3.2, 2.9], font=8.5)
+para("**Uydu doğrulaması.** Her poligonda 2022 yazı → 2023 yazı Sentinel-2 bitki örtüsü (NDVI) ve parlaklık "
+     "değişimi, çevresindeki halkaya göre ölçülecek şekilde hazırlandı (Google Earth Engine betiği "
+     "gee/ndvi_change.js). Sinyal vermeyen poligonlar eğitimden çıkarılarak duyarlılık yeniden raporlanacak.")
+s2_p = RES / "sentinel_summary.json"
+if s2_p.exists():
+    s2 = json.loads(s2_p.read_text())
+    para(f"Sonuç: kullanılabilir poligonların %{100 * s2['polygons_share_confirmed_of_usable']:.0f}’inde "
+         "uydudan bağımsız heyelan izi doğrulandı; dik arka plan noktalarında olası kaçmış heyelan oranı "
+         f"%{100 * s2['negatives_contamination_rate']:.1f} (eşiğin kendi taban değeri ≈ %10).")
+
 # ============================== 6. UYGULAMA ================================ #
 doc.add_heading("6. İnteraktif Uygulama", level=1)
 para("Model, React (arayüz) + FastAPI (sunucu) tabanlı bir web uygulamasına bağlandı. Başlıca sayfalar:")

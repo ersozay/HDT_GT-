@@ -105,6 +105,63 @@ katmanı üç noktalı şematik çizgilerdir. Bu dosya tezde veya uygulamada
 **kullanılmamalı**. Pilot QGIS projesi (`ID1327_ID1353_Geotechnical_Pro.qgz`)
 ise yalnızca referans verir; içindeki GeoPackage diskte bulunamadı.
 
+
+### 0.8 Danışman önerisi: envanterin doğrulanması (üç adım)
+
+**(a) Poligon gerçek mi? — Sentinel-2, 2022 yaz → 2023 yaz.**
+Her poligonda ve 4.000 dik/tarım-dışı arka plan noktasında ΔNDVI ve Δparlaklık,
+30–150 m'lik halkaya göre ölçülür. Eşikler arka plan dağılımının %5/%95
+yüzdeliklerinden gelir; poligonlar "doğrulandı / sinyal yok / belirsiz"
+(zaten çıplak ya da bulutlu) olarak sınıflanır. Saf gürültüyle yapılan kontrol
+testinde beklendiği gibi yalnız ≈%10 "doğrulandı" çıkıyor.
+Bu makinedeki bağlantı (≈4 KB/s) uzaktan COG okumaya yetmediği için hesap
+**Google Earth Engine**'e taşındı: `gee/ndvi_change.js` (kurulum adımları dosyanın
+başında), yükleme paketleri `gee/inventory_upload.zip`, `gee/negatives_upload.zip`
+(`scripts/14` ile yeniden üretilebilir). Sonuç CSV'leri gelince:
+`python3 scripts/14_sentinel_validation.py --from-gee outputs/gee`.
+Bağlantı iyiyse doğrudan `python3 scripts/14_sentinel_validation.py` de çalışır.
+
+**(b) Litoloji FR — yalnız PROXY.** `scripts/15_frequency_ratio.py`, Kocaman ve
+ark. yöntemiyle (sınıftaki heyelan piksel oranı / sınıf alan oranı) FR üretir.
+Litoloji FR'si Macrostrat proxy'siyle hesaplanır ve öyle etiketlenir; Kocaman
+Tablo 4'teki MTA değerleri (peridotit 6,70; mermer-şist 6,36) bu proxy ile
+üretilemez. Diğer faktörler (90 m, 2.596 poligon):
+
+| Faktör | Sınıf | FR |
+|---|---|---|
+| Eğim | 0–5° / 15–20° / 30–35° / >40° | 0,06 / 2,16 / 9,07 / 35,9 |
+| Faya uzaklık (GEM) | 0–2 / 2–5 / 20–40 / >40 km | 3,49 / 2,31 / 0,63 / 0,02 |
+| 2023 kırılmasına uzaklık | 0–2 / 2–5 / 5–10 / >40 km | 6,32 / 5,12 / 3,46 / 0,17 |
+| Yükseklik | 750–1000 / 1000–1250 / >2000 m | 2,31 / 3,41 / 0,30 |
+| Arazi örtüsü | çalılık / ağaç / çıplak / tarım | 3,83 / 2,38 / 2,23 / 0,03 |
+| Litoloji (PROXY) | granit / andezit / kil / silttaşı | 3,61 / 2,14 / 1,97 / 0,21 |
+
+**(c) "Heyelan yok" kesin yokluk değil (PU öğrenme).** `scripts/16_label_noise.py`
+dört eğitim varyantını aynı test bloklarında karşılaştırır (bkz. 0.9).
+Ek referans: Elkan C. & Noto K. (2008). Learning classifiers from only positive and unlabeled data. KDD.
+
+### 0.9 "Heyelan yok" etiketinin kirliliğine duyarlılık (`scripts/16_label_noise.py`)
+
+Negatiflerin heyelanlara medyan uzaklığı 24,4 km; %2,1'i 1 km'den, %5,2'si 2 km'den yakın.
+Aynı mekânsal test bloklarında (5 kat, tüm negatiflerle) dört eğitim varyantı:
+
+| Eğitim varyantı | ROC-AUC | Dik arazi AUC | Kritik PGA (P = 0,5) | Başlangıç (LR = 1) | Elkan–Noto c |
+|---|---|---|---|---|---|
+| Temel (negatifler ≥ 200 m) | 0,965 ± 0,014 | 0,906 | 0,57 ± 0,07 g | 0,06 ± 0,03 g | 0,69 |
+| Negatifler ≥ 1 km | 0,965 ± 0,013 | 0,908 | 0,52 ± 0,06 g | 0,06 ± 0,02 g | 0,70 |
+| Negatifler ≥ 2 km | 0,965 ± 0,014 | 0,907 | 0,46 ± 0,05 g | 0,09 ± 0,02 g | 0,71 |
+| PU-casus (%5 şüpheli negatif çıkarıldı) | 0,967 ± 0,011 | 0,915 | 0,35 ± 0,03 g | 0,04 ± 0,03 g | 0,80 |
+
+**Yorum.** Ayırma gücü etiket kirliliğine dayanıklı; PU-casus temizliği dik arazide
+küçük bir iyileşme getiriyor. Başlangıç eşiği (LR = 1 ≈ 0,04–0,09 g) tüm varyantlarda
+aynı aralıkta ve ampirik FR = 1 değeriyle (0,085 g) uyumlu — tezin sağlam bulgusu.
+P = 0,5 düzeyindeki Kritik PGA ise negatif kümesine göre 0,35–0,57 g arasında kayıyor;
+örnekleme oranı duyarlılığıyla birlikte bu, o sayının tek değer olarak verilmemesi
+gerektiğini gösteriyor.
+
+Not: bu ortamda uzun işler makine uykuya geçince duruyor; `caffeinate -i -s python3 …`
+ile çalıştırılmalı (betik kaldığı yerden devam eder; önbellek `outputs/cache/`).
+
 ### 0.7 Referanslar (eklenen)
 
 - Kocaman S. ve ark. (2025). Landslides triggered by the 6 February 2023

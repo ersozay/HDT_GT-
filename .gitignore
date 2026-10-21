@@ -70,3 +70,10 @@ outputs/fem/
 
 # Yerel editör/araç ayarları
 .claude/
+
+# GEE yükleme paketleri (envanter verisi; yerelde üretilir — scripts/14 / gee/ndvi_change.js)
+gee/inventory/
+gee/negatives/
+gee/*.zip
+outputs/gee/
+outputs/cache/

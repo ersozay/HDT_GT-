@@ -29,11 +29,16 @@ step "02 · FEM-SSR pilot analizi"
 python3 scripts/02_run_fem.py | tee outputs/logs/fem.log
 step "13 · Poligon bazında kayma simülasyonu (zaman-tanım Newmark)"
 python3 scripts/13_newmark_simulation.py
+step "15/16 · Frekans Oranı ve etiket kirliliği duyarlılığı"
+python3 scripts/15_frequency_ratio.py
+caffeinate -i -s python3 scripts/16_label_noise.py --budget 100000
 step "04 · Senaryo haritaları"
 python3 scripts/04_generate_maps.py
 step "06/07 · Newmark modelleri ve Wenchuan fizik-transferi"
 python3 scripts/06_newmark_models.py
 python3 scripts/07_wenchuan_validation.py
+# Sentinel-2 doğrulaması (yavaş bağlantıda GEE yolu: gee/ndvi_change.js → --from-gee):
+#   caffeinate -i -s python3 scripts/14_sentinel_validation.py
 step "Rapor"
 python3 docs/build_report.py
 step "Testler"
