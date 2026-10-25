@@ -360,7 +360,7 @@ doc.add_heading("5. Sonuçlar", level=1)
 doc.add_heading("5.1 Model Karşılaştırması (mekânsal blok doğrulama)", level=2)
 para("Önerilen modelin değerini göstermek için 9 model aynı koşullarda karşılaştırıldı:")
 order = ["newmark", "logreg", "rf", "gbm", "gbm_mono", "mlp", "pinn_v1", "pinn_v2", "pinn_v2_nophysfeat",
-         "logreg_L", "rf_L", "gbm_L", "gbm_mono_L", "mlp_L", "pinn_v2_L"]
+         "logreg_L", "rf_L", "gbm_L", "gbm_mono_L", "mlp_L", "pinn_v2_L", "pinn_v2_L_nolitho"]
 rows = []
 for k in order:
     m = M.get(k)
@@ -500,6 +500,37 @@ if s2_p.exists():
          "uydudan bağımsız heyelan izi doğrulandı; dik arka plan noktalarında olası kaçmış heyelan oranı "
          f"%{100 * s2['negatives_contamination_rate']:.1f} (eşiğin kendi taban değeri ≈ %10).")
 
+rf_p = RES / "rainfall_scenario.json"
+if rf_p.exists():
+    rs = json.loads(rf_p.read_text()); ev = rs["event_2023_02_06"]
+    doc.add_heading("5.8 Yağış Senaryosu: Deprem + Zemin Doygunluğu", level=2)
+    para("Yağış, zemindeki boşluk suyu basıncını artırarak yamacın dayanımını düşürür. Su tablasının kayma "
+         "yüzeyinin üzerinde m oranında (0 kuru, 1 yüzeye kadar doygun) olduğu kabul edildi: u = m·γw·z·cos²θ. "
+         "Bu basınç güvenlik faktörünü ve kritik ivmeyi düşürür, Newmark kaymasını artırır. Fizik kısıtına bu "
+         "‘doygunluk yolu’ da eklendi: model, zemin ıslandıkça heyelan olasılığını düşüremez.")
+    para(f"6 Şubat 2023 sabahı zemin ıslaktı: ERA5-Land kök bölgesi doygunluğu medyan "
+         f"{f2(ev['saturation_median'])}, depremden önceki 30 günde medyan {ev['precip_30d_median_mm']:.0f} mm yağış.")
+    table(["Doygunluk m", "Kritik PGA (P = 0,5)", "Başlangıç (LR = 1)", "Newmark %50", "Medyan Kᵧ"],
+          [[f2(x["m"]), f"{f2(x['critical_pga_p05_g'])} g", f"{f2(x['onset_lr1_g'])} g",
+            f"{f2(x['newmark_p50_g'])} g", f"{f3(x['median_ky_g'])} g"] for x in rs["scenarios"]],
+          [3.0, 3.6, 3.4, 3.2, 3.0])
+    bullet(f"Gerçek olay nemini kullanmak gözlemle uyumu artırıyor: saf fizik (Newmark) AUC "
+           f"{f3(ev['newmark_auc_dry'])} → {f3(ev['newmark_auc_wet'])}, heyelanları yakalama oranı "
+           f"%{100 * ev['newmark_hit_rate_dry']:.0f} → %{100 * ev['newmark_hit_rate_wet']:.0f}; "
+           f"PINN AUC {f3(ev['model_auc_dry'])} → {f3(ev['model_auc_event_wet'])}.")
+    bullet("Yorum: 2023 heyelanları ıslak kış koşullarında gerçekleşti; kuru varsayım fiziği muhafazakâr kılıyor. "
+           "Bu, deprem ve yağışı aynı fizik çerçevesinde birleştiren dijital ikizin ana katkısıdır.")
+    figure("rainfall_scenario_curves", "Şekil 10. Zemin doygunluğu arttıkça tetiklenme daha düşük PGA’da başlıyor.", 16.0)
+    figure("rainfall_maps", "Şekil 11. Kuru ve 6 Şubat 2023 nemiyle duyarlılık; sağda fark.", 16.5)
+
+bm = M.get("pinn_v2_L_nolitho")
+if bm:
+    doc.add_heading("5.9 Litoloji Ablasyonu", level=2)
+    para(f"Kaba litoloji proxy’sinin sonuçları belirleyip belirlemediği, tüm noktalara tek tip zemin atanarak "
+         f"sınandı: litolojisiz model AUC {f3(bm['roc_auc']['mean'])} ± {f3(bm['roc_auc']['std'])} "
+         f"(litolojili {f3(M[MAIN]['roc_auc']['mean'])}). Proxy ayırma gücüne katkı vermiyor; resmi MTA haritasının "
+         "yokluğu ana bulgular için engel değil. Litolojiye özgü çıktılar (tasarım tablosu) gösterge niteliğindedir.")
+
 # ============================== 6. UYGULAMA ================================ #
 doc.add_heading("6. İnteraktif Uygulama", level=1)
 para("Model, React (arayüz) + FastAPI (sunucu) tabanlı bir web uygulamasına bağlandı. Başlıca sayfalar:")
@@ -536,7 +567,8 @@ table(["Konu", "Sürüm 1 (Temmuz 2026)", "Sürüm 2 (Ekim 2026)"], [
 doc.add_heading("8. Bilinen Kısıtlar (Şeffaflık)", level=1)
 para("Bilimsel dürüstlük için mevcut kısıtlar açıkça belirtilir:")
 bullet("**Litoloji bir PROXY’dir:** Resmi MTA jeoloji haritası yerine Macrostrat API kullanıldı "
-       "(~5 km çözünürlük; duyarlılık haritasındaki dikdörtgen bloklar bunun izidir). Dayanım değerleri sınıf ortalamalarıdır. Resmi harita edinilince "
+       "(~5 km çözünürlük; duyarlılık haritasındaki dikdörtgen bloklar bunun izidir). Ablasyon, proxy’nin "
+       "ayırma gücünü belirlemediğini gösteriyor (Bölüm 5.9). Dayanım değerleri sınıf ortalamalarıdır. Resmi harita edinilince "
        "değiştirilecek; bu, en büyük iyileştirme fırsatıdır.")
 bullet("**Kritik PGA (P = 0,5) örnekleme tasarımına bağlıdır:** Değer belirsizlik aralığıyla ve "
        "duyarlılık analiziyle birlikte verilmiştir (Bölüm 4).")
@@ -567,6 +599,9 @@ for ref_txt in [
     "Zanaga D. ve ark. (2022). ESA WorldCover 10 m 2021 v200. https://doi.org/10.5281/zenodo.7254221",
     "Poggio L. ve ark. (2021). SoilGrids 2.0. SOIL 7: 217–240.",
     "Peters S.E., Husson J.M., Czaplewski J. (2018). Macrostrat. Geochemistry, Geophysics, Geosystems 19: 1393–1409.",
+    "Iverson R.M. (2000). Landslide triggering by rain infiltration. Water Resources Research 36(7): 1897–1910.",
+    "Muñoz-Sabater J. ve ark. (2021). ERA5-Land: a state-of-the-art global reanalysis dataset for land applications. Earth System Science Data 13: 4349–4383.",
+    "Elkan C., Noto K. (2008). Learning classifiers from only positive and unlabeled data. KDD 2008: 213–220.",
 ]:
     p = para(ref_txt, size=9.5, after=3)
     p.paragraph_format.left_indent = Cm(0.6); p.paragraph_format.first_line_indent = Cm(-0.6)

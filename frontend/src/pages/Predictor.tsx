@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import SaturationControl from "../components/SaturationControl";
 import {
   api,
   Lithology,
@@ -61,7 +62,9 @@ export default function Predictor() {
     aspect: 180,
     litho_id: 11,
     pga: 0.6,
+    saturation: 0,
   });
+  const [coord, setCoord] = useState<{ lat: number; lon: number } | null>(null);
   const [result, setResult] = useState<PointResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -90,7 +93,9 @@ export default function Predictor() {
       aspect: Math.round(r.aspect),
       litho_id: r.litho_id,
       pga: Number(r.pga.toFixed(2)),
+      saturation: input.saturation ?? 0,
     });
+    setCoord({ lat: r.lat, lon: r.lon });
     setAutoNote(
       `${label} → ${r.lat.toFixed(3)}, ${r.lon.toFixed(3)} · ${r.litho_name}`,
     );
@@ -234,7 +239,7 @@ export default function Predictor() {
             {presets.map((p) => (
               <button
                 key={p.name}
-                onClick={() => setInput({ slope: p.slope, elevation: p.elevation, aspect: p.aspect, litho_id: p.litho_id, pga: p.pga })}
+                onClick={() => setInput({ slope: p.slope, elevation: p.elevation, aspect: p.aspect, litho_id: p.litho_id, pga: p.pga, saturation: input.saturation ?? 0 })}
                 className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-brand-500 dark:hover:text-brand-300"
                 title="Tez pilot noktası — hazır senaryo"
               >
@@ -247,6 +252,12 @@ export default function Predictor() {
             <Slider label="Yükseklik" value={input.elevation} min={0} max={3000} step={50} unit="m" onChange={(v) => set("elevation", v)} />
             <Slider label="Bakı" value={input.aspect} min={0} max={359} step={1} unit="°" onChange={(v) => set("aspect", v)} />
             <Slider label="PGA (yer ivmesi)" value={input.pga} min={0.05} max={1.5} step={0.05} unit="g" onChange={(v) => set("pga", v)} />
+            <SaturationControl
+              value={input.saturation ?? 0}
+              onChange={(v) => set("saturation", v)}
+              lat={coord?.lat}
+              lon={coord?.lon}
+            />
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-600 dark:text-slate-300">
                 Litoloji (jeolojik birim)

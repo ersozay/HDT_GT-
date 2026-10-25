@@ -15,7 +15,7 @@ def predict_point(req: PointRequest):
     m = get_model()
     return m.predict_point(
         slope=req.slope, elevation=req.elevation, aspect=req.aspect,
-        litho_id=req.litho_id, pga=req.pga,
+        litho_id=req.litho_id, pga=req.pga, saturation=req.saturation,
     )
 
 
@@ -25,6 +25,7 @@ def critical_pga(req: CriticalRequest):
     return m.critical_pga(
         slope=req.slope, elevation=req.elevation, aspect=req.aspect,
         litho_id=req.litho_id, pga_min=req.pga_min, pga_max=req.pga_max, step=req.step,
+        saturation=req.saturation,
     )
 
 
@@ -34,4 +35,11 @@ def newmark_curves(req: NewmarkCurvesRequest):
     return m.newmark_curves(
         slope=req.slope, elevation=req.elevation, aspect=req.aspect,
         litho_id=req.litho_id, pga_min=req.pga_min, pga_max=req.pga_max, step=req.step,
+        saturation=req.saturation,
     )
+
+
+@router.get("/moisture")
+def moisture(lat: float, lon: float):
+    """Noktada zemin doygunluğu: 6 Şubat 2023 (ERA5-Land) ve bugün + 3 gün tahmini (Open-Meteo)."""
+    return get_model().moisture(lat=lat, lon=lon)

@@ -93,3 +93,13 @@ def faults_geojson():
 @router.get("/stations.geojson")
 def stations_geojson():
     return _layers.stations_geojson()
+
+
+
+@router.get("/overlay_wet.png")
+def overlay_wet_png():
+    """6 Şubat 2023 zemin nemiyle duyarlılık (yağış senaryosu, scripts/17)."""
+    png = get_model().overlay_png(wet=True)
+    if png is None:
+        raise HTTPException(status_code=404, detail="Islak senaryo rasterı yok — scripts/17 çalıştırın")
+    return Response(content=png, media_type="image/png", headers=_PNG_CACHE)

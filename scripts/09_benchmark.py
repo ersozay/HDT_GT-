@@ -56,7 +56,7 @@ RESULTS_DIR = OUTPUTS_DIR / "results"
 ALL_MODELS = ["newmark", "logreg", "rf", "gbm", "gbm_mono",
               "mlp", "pinn_v1", "pinn_v2", "pinn_v2_nophysfeat"]
 # "_L" soneki: aynı model + açık kaynak ek katmanlar (v3 öznitelikleri, scripts/12)
-LAYER_MODELS = ["logreg_L", "rf_L", "gbm_L", "gbm_mono_L", "mlp_L", "pinn_v2_L"]
+LAYER_MODELS = ["logreg_L", "rf_L", "gbm_L", "gbm_mono_L", "mlp_L", "pinn_v2_L", "pinn_v2_L_nolitho"]
 
 # Fizik öznitelikleri çıkarılmış (yalnız veri) öznitelik kümesi — ablasyon.
 # PGA ve eğim kalır (fizik-yolu kısıtı bunlar üzerinden kurulur); Ky, log Dn ve
@@ -73,9 +73,34 @@ LABELS = {
 }
 for _k in list(LABELS):
     LABELS[_k + "_L"] = LABELS[_k] + " + katmanlar"
+LABELS["pinn_v2_L_nolitho"] = "PINN v2 + katmanlar — litolojisiz (ablasyon)"
+
+
+def uniform_litho(df):
+    """
+    Litoloji ablasyonu: tüm noktalara tek tip zemin (sınıf 27, 'karışık') atanır;
+    c', φ', γ, Kᵧ ve Dₙ yeniden hesaplanır → model litoloji proxy'sinden hiçbir bilgi almaz.
+    """
+    from src.geomechanics.lithology import LITHOLOGY_TABLE
+    from src.geomechanics.mohr_coulomb import StaticFS, CriticalAcceleration
+    from src.geomechanics.newmark import NewmarkDisplacement
+    from src.data_engineering.feature_matrix import DN_LOG_OFFSET_CM
+    from config import Z_REF_M
+    d = df.copy(); p = LITHOLOGY_TABLE[27]
+    d["cohesion_kpa"], d["friction_deg"], d["unit_weight"] = p["c_prime"], p["phi_prime"], p["gamma"]
+    th = d["slope_deg"].to_numpy()
+    ky = CriticalAcceleration(StaticFS(p["c_prime"], p["phi_prime"], p["gamma"], Z_REF_M, th), th)
+    dn = NewmarkDisplacement(ky, d["pga_g"].to_numpy()) * 100
+    d["ky_g"], d["dn_cm"], d["log_dn_cm"] = ky, dn, np.log10(dn + DN_LOG_OFFSET_CM)
+    for c in LITHO_ONEHOT_COLS:
+        d[c] = 0.0
+    d["litho_27"] = 1.0
+    return d
 
 
 def _model_and_features(name, epochs):
+    if name == "pinn_v2_L_nolitho":
+        return make_model("pinn_v2", MODEL_FEATURES_V3, epochs=epochs), MODEL_FEATURES_V3
     if name.endswith("_L"):
         base = name[:-2]
         kw = {"epochs": epochs} if base in ("mlp", "pinn_v1", "pinn_v2") else {}
@@ -113,7 +138,7 @@ def run(models, n_folds=5, epochs=120, block_deg=0.25, n_mono=2000):
         for name in models:
             t0 = time.time()
             m, cols = _model_and_features(name, epochs)
-            X = df[cols].to_numpy(np.float32)
+            X = (uniform_litho(df) if name.endswith("_nolitho") else df)[cols].to_numpy(np.float32)
             m.fit(X[tr_in], y[tr_in], X[va], y[va])
             thr = best_f1_threshold(y[va], m.predict(X[va]))
             p_te = m.predict(X[te])

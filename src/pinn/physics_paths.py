@@ -3,11 +3,13 @@ Fizik yolları üzerinde kolokasyon çiftleri (physics collocation pairs).
 
 PINN'lerde (Raissi ve ark. 2019) fizik kısıtı, gözlem noktalarına ek olarak
 alanın tamamına yayılmış "kolokasyon noktalarında" uygulanır. Burada fizik,
-Mohr-Coulomb sonsuz şev + Newmark (Jibson 2007) zinciridir; ondan iki kesin
+Mohr-Coulomb sonsuz şev + Newmark (Jibson 2007) zinciridir; ondan üç kesin
 işaret kısıtı çıkar:
 
   (1) PGA yolu   : diğer her şey sabit, PGA ↑  ⇒ Dn ↑            ⇒ P ↓ olamaz
   (2) Eğim yolu  : litoloji sabit,  θ ↑        ⇒ FS ↓, Ky ↓, Dn ↑ ⇒ P ↓ olamaz
+  (3) Doygunluk yolu: yağışla su tablası oranı m ↑ ⇒ u ↑ ⇒ FS ↓, Ky ↓, Dn ↑
+                      ⇒ P ↓ olamaz  (u = m·γ_w·z·cos²θ; bkz. geomechanics/hydrology.py)
 
 Her çift (x_a, x_b) bir yol üzerinde küçük bir adımdır; Ky ve Dn fizik
 denklemleriyle YENİDEN hesaplanır (öznitelikler birbirinden bağımsız
@@ -52,10 +54,12 @@ class PhysicsPathSampler:
         self.rng = np.random.RandomState(seed)
 
     # -- fizik zinciri --------------------------------------------------- #
-    def _set_slope(self, X, slope):
+    def _set_slope(self, X, slope, m=0.0):
+        from ..geomechanics.hydrology import pore_pressure
         c = self.c
+        u = pore_pressure(m, self.z_ref, slope)
         fs = StaticFS(X[:, c["cohesion_kpa"]], X[:, c["friction_deg"]],
-                      X[:, c["unit_weight"]], self.z_ref, slope)
+                      X[:, c["unit_weight"]], self.z_ref, slope, u)
         X[:, c["slope_deg"]] = slope
         X[:, c["ky_g"]] = CriticalAcceleration(fs, slope)
 
@@ -69,28 +73,35 @@ class PhysicsPathSampler:
 
     # -- çift üretimi ---------------------------------------------------- #
     def sample(self, n: int) -> tuple[np.ndarray, np.ndarray]:
-        """n çift döndürür (yarısı PGA yolu, yarısı eğim yolu): (Xa_n, Xb_n)."""
+        """n çift: ⅓ PGA yolu, ⅓ eğim yolu, ⅓ doygunluk yolu → (Xa_n, Xb_n)."""
         idx = self.rng.randint(0, len(self.X), size=n)
         Xa = self.X[idx].copy()
         Xb = Xa.copy()
         c = self.c
-        half = n // 2
+        n1, n2 = n // 3, 2 * n // 3
 
         # (1) PGA yolu
         lo, hi = self.pga_range
-        pa = self.rng.uniform(lo, hi, size=half)
-        pb = pa + self.rng.uniform(0.02, 0.15, size=half)
-        Xa[:half, c["pga_g"]] = pa
-        Xb[:half, c["pga_g"]] = pb
+        pa = self.rng.uniform(lo, hi, size=n1)
+        Xa[:n1, c["pga_g"]] = pa
+        Xb[:n1, c["pga_g"]] = pa + self.rng.uniform(0.02, 0.15, size=n1)
 
-        # (2) Eğim yolu (PGA, gözlenen değerinde kalır)
+        # (2) Eğim yolu (PGA gözlenen değerinde, kuru)
         slo, shi = self.slope_range
-        sa = self.rng.uniform(slo, shi, size=n - half)
-        sb = np.minimum(sa + self.rng.uniform(1.0, 6.0, size=n - half), 89.0)
-        A, B = Xa[half:], Xb[half:]
-        self._set_slope(A, sa)
-        self._set_slope(B, sb)
-        Xa[half:], Xb[half:] = A, B
+        sa = self.rng.uniform(slo, shi, size=n2 - n1)
+        sb = np.minimum(sa + self.rng.uniform(1.0, 6.0, size=n2 - n1), 89.0)
+        A, B = Xa[n1:n2], Xb[n1:n2]
+        self._set_slope(A, sa); self._set_slope(B, sb)
+        Xa[n1:n2], Xb[n1:n2] = A, B
+
+        # (3) Doygunluk yolu (eğim gözlenen değerinde)
+        k = n - n2
+        ma = self.rng.uniform(0.0, 0.85, size=k)
+        mb = np.minimum(ma + self.rng.uniform(0.05, 0.3, size=k), 1.0)
+        A, B = Xa[n2:], Xb[n2:]
+        th = A[:, c["slope_deg"]].copy()
+        self._set_slope(A, th, ma); self._set_slope(B, th, mb)
+        Xa[n2:], Xb[n2:] = A, B
 
         self._update_dn(Xa)
         self._update_dn(Xb)

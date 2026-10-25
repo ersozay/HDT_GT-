@@ -57,10 +57,12 @@ Kappa 0,777, Brier 0,072, ihlal %0,07.
 
 | Tanım | Değer |
 |---|---|
-| P = 0,5 (6 model ortalama eğrisi) | **0,62 g** (model aralığı 0,49–0,75 g) |
-| Başlangıç, LR = 1 | **0,093 g** |
+| P = 0,5 (6 model ortalama eğrisi) | **0,59 g** (model aralığı 0,50–0,80 g) |
+| Başlangıç, LR = 1 | **0,08 g** (model aralığı 0,02–0,16 g) |
 | Ampirik başlangıç, gözlenen FR = 1 | **0,085 g** |
-| Örnekleme oranı 1 / 1,5 / 2,5 → P = 0,5 | 0,45 / 0,45 / 0,74 g |
+| Örnekleme oranı 1 / 1,5 / 2,5 → P = 0,5 | 0,41 / 0,44 / 0,73 g |
+
+(Değerler doygunluk yolu eklenmiş son modele aittir; ilk katmanlı modelde 0,62 g / 0,093 g idi.)
 
 **En sağlam bulgu:** heyelan lehine başlangıç eşiği (LR = 1 ≈ 0,09 g) envanterden
 bağımsız hesaplanan ampirik değerle (FR = 1 ≈ 0,085 g) örtüşüyor. P = 0,5
@@ -121,6 +123,15 @@ başında), yükleme paketleri `gee/inventory_upload.zip`, `gee/negatives_upload
 `python3 scripts/14_sentinel_validation.py --from-gee outputs/gee`.
 Bağlantı iyiyse doğrudan `python3 scripts/14_sentinel_validation.py` de çalışır.
 
+**Örneklem sonucu (40 rastgele poligon + 80 dik arka plan noktası, doğrudan AWS):**
+kullanılabilir poligonların **%53'ünde** uydudan bağımsız heyelan izi doğrulandı
+(yöntemin saf gürültüdeki taban değeri ≈ %10 → ≈5 kat). Doğrulanma oranı küçük
+poligonlarda yüksek (<1.000 m²: %75), büyük ve eski/derin kütlelerde düşük (>20.000 m²: %25;
+büyük sackung/rotasyonel kütleler bitki örtüsünü korur). Arka planda "olası kaçmış
+heyelan" oranı %9,1 ≈ taban değer → negatif etiketlerde aşırı kirlilik kanıtı yok.
+200 poligonluk örneklem ve tüm envanter (GEE) sonuçları `outputs/results/sentinel_*`
+dosyalarına eklenecek.
+
 **(b) Litoloji FR — yalnız PROXY.** `scripts/15_frequency_ratio.py`, Kocaman ve
 ark. yöntemiyle (sınıftaki heyelan piksel oranı / sınıf alan oranı) FR üretir.
 Litoloji FR'si Macrostrat proxy'siyle hesaplanır ve öyle etiketlenir; Kocaman
@@ -161,6 +172,56 @@ gerektiğini gösteriyor.
 
 Not: bu ortamda uzun işler makine uykuya geçince duruyor; `caffeinate -i -s python3 …`
 ile çalıştırılmalı (betik kaldığı yerden devam eder; önbellek `outputs/cache/`).
+
+### 0.10 Yağış senaryosu (`scripts/17_rainfall_scenario.py`, `src/geomechanics/hydrology.py`)
+
+Boşluk suyu basıncı yamaca paralel sızmayla u = m·γ_w·z·cos²θ (m: su tablası oranı).
+Fizik-yolu kısıtına **doygunluk yolu** eklendi (m ↑ ⇒ Kᵧ ↓, Dₙ ↑ ⇒ P düşemez); model
+yeniden eğitildi (AUC 0,966, ihlal %0,1).
+
+**Olay nemi:** ERA5-Land kök bölgesi (0–100 cm) toprak nemi, 6 Şubat 2023 01 UTC,
+0,25° ızgara (Open-Meteo arşivi): doygunluk S = θ/θ_s medyan **0,62**; depremden önceki
+30 gün yağış medyan **70 mm**. Kış ortası, ıslak zemin.
+
+| m | Kritik PGA (P = 0,5) | Başlangıç (LR = 1) | Newmark %50 | Medyan Kᵧ |
+|---|---|---|---|---|
+| 0 (kuru) | 0,59 g | 0,08 g | 1,23 g | 0,24 g |
+| 0,25 | 0,56 g | 0,07 g | 0,91 g | 0,18 g |
+| 0,50 | 0,52 g | 0,05 g | 0,60 g | 0,12 g |
+| 0,75 | 0,47 g | 0,02 g | 0,29 g | 0,06 g |
+| 1 (doygun) | 0,43 g | ≤ 0,02 g | ≤ 0,02 g | 0 |
+
+**Olay doğrulaması** (nihai modelin mekânsal test blokları): gerçek 6 Şubat nemini
+kullanmak gözlemle uyumu artırıyor — Newmark (saf fizik) AUC **0,62 → 0,70**,
+heyelan noktalarında 10 cm'yi aşma **%10 → %24** (yanlış alarm %3,5 → %6,5);
+PINN AUC 0,966 → 0,967, dik arazide 0,914 → 0,916. Yorum: 2023 koseismik heyelanları
+ıslak kış koşullarında gerçekleşti; kuru varsayım Newmark'ı sistematik olarak
+muhafazakâr kılıyor.
+
+**Uygulama:** Tahmin ve Kritik PGA sayfalarında "zemin doygunluğu" kaydırıcısı ve
+Kuru / 6 Şubat 2023 / Bugün / 3 gün tahmini düğmeleri (Open-Meteo canlı); haritada
+"6 Şubat 2023 zemin nemiyle duyarlılık" katmanı, doygunluk ve 30 günlük yağış katmanları.
+
+Varsayımlar: m ≈ S (kök bölgesi doygunluğu) basit bir vekildir; z = 5 m; θ_s = 0,45;
+eğitim verisi kuru (u = 0) olduğundan ıslak senaryo, fizik girdileri (Kᵧ, Dₙ) ve
+doygunluk yolu kısıtı üzerinden kontrollü bir dışkestirimdir.
+Referanslar: Iverson (2000) WRR 36(7); Muñoz-Sabater ve ark. (2021) ESSD 13.
+
+### 0.11 Litoloji ablasyonu — proxy sonuçları belirliyor mu?
+
+Tüm noktalara tek tip zemin atanıp (c′, φ′, γ, Kᵧ, Dₙ yeniden hesaplanarak) aynı
+5 katlı mekânsal CV yapıldı:
+
+| Model | ROC-AUC | Dik arazi AUC | F1 |
+|---|---|---|---|
+| PINN v2 + katmanlar (Macrostrat litoloji ile) | 0,965 ± 0,013 | 0,909 | 0,830 |
+| PINN v2 + katmanlar — **litolojisiz** | **0,967 ± 0,011** | **0,913** | 0,842 |
+
+Kaba (~5 km) litoloji proxy'si ayırma gücüne katkı vermiyor; yerini pürüzlülük,
+rölyef, Vs30, arazi örtüsü ve zemin dokusu dolduruyor. **Sonuç: MTA haritasının
+yokluğu ana bulgular için yayın engeli değildir.** Litolojiye özgü çıktılar (tasarım
+tablosu, saf Newmark Kᵧ'si) "proxy — gösterge niteliğinde" olarak raporlanmalı;
+MTA verisi geldiğinde yeniden hesaplanır.
 
 ### 0.7 Referanslar (eklenen)
 

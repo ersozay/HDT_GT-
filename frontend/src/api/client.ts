@@ -209,6 +209,16 @@ export interface PointInput {
   aspect: number;
   litho_id: number;
   pga: number;
+  saturation?: number;
+}
+
+export interface Moisture {
+  event_2023_02_06: number | null;
+  now: number | null;
+  forecast_3d_max?: number | null;
+  forecast_3d_precip_mm: number | null;
+  source: string;
+  live_error?: string;
 }
 
 export interface InventoryItem {
@@ -285,6 +295,7 @@ export const api = {
   overlayUrl: () => `/api/map/overlay.png`,
   lithologyOverlayUrl: () => `/api/map/lithology.png`,
   rainfallOverlayUrl: () => `/api/map/rainfall.png`,
+  moisture: (lat: number, lon: number) => get<Moisture>(`/api/predict/moisture?lat=${lat}&lon=${lon}`),
   newmarkSim: () => get<NewmarkSim>("/api/results/newmark-sim"),
   mapLayers: () => get<MapLayerInfo[]>("/api/map/layers"),
   mapLayerMeta: (id: string) => get<MapLayerMeta>(`/api/map/layer/${id}/meta`),

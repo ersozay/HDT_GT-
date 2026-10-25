@@ -611,35 +611,35 @@
     "pinn_v2_L": {
       "label": "PINN v2 (önerilen) + katmanlar",
       "roc_auc": {
-        "mean": 0.9653,
+        "mean": 0.9652,
         "std": 0.0133
       },
       "pr_auc": {
-        "mean": 0.9134,
-        "std": 0.0283
+        "mean": 0.9135,
+        "std": 0.0291
       },
       "f1": {
-        "mean": 0.8288,
-        "std": 0.0423
+        "mean": 0.8297,
+        "std": 0.0435
       },
       "precision": {
-        "mean": 0.8557,
-        "std": 0.0322
+        "mean": 0.8497,
+        "std": 0.0351
       },
       "recall": {
-        "mean": 0.8085,
-        "std": 0.0876
+        "mean": 0.8157,
+        "std": 0.0891
       },
       "kappa": {
-        "mean": 0.7642,
-        "std": 0.0519
+        "mean": 0.7647,
+        "std": 0.0542
       },
       "brier": {
-        "mean": 0.0776,
-        "std": 0.0088
+        "mean": 0.078,
+        "std": 0.0078
       },
       "roc_auc_steep": {
-        "mean": 0.9082,
+        "mean": 0.9092,
         "std": 0.0216
       },
       "mono_violation_rate": {
@@ -648,7 +648,50 @@
       },
       "mono_mean_drop": {
         "mean": 0.0,
-        "std": 0.0
+        "std": 0.0001
+      }
+    },
+    "pinn_v2_L_nolitho": {
+      "label": "PINN v2 + katmanlar — litolojisiz (ablasyon)",
+      "roc_auc": {
+        "mean": 0.9668,
+        "std": 0.0111
+      },
+      "pr_auc": {
+        "mean": 0.9179,
+        "std": 0.0262
+      },
+      "f1": {
+        "mean": 0.8424,
+        "std": 0.0319
+      },
+      "precision": {
+        "mean": 0.8525,
+        "std": 0.0233
+      },
+      "recall": {
+        "mean": 0.8351,
+        "std": 0.0651
+      },
+      "kappa": {
+        "mean": 0.7811,
+        "std": 0.0402
+      },
+      "brier": {
+        "mean": 0.0758,
+        "std": 0.0066
+      },
+      "roc_auc_steep": {
+        "mean": 0.913,
+        "std": 0.02
+      },
+      "mono_violation_rate": {
+        "mean": 0.0024,
+        "std": 0.0048
+      },
+      "mono_mean_drop": {
+        "mean": 0.0003,
+        "std": 0.0003
       }
     }
   },

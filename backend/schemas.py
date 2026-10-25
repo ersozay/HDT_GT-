@@ -10,6 +10,7 @@ class PointRequest(BaseModel):
     aspect: float = Field(180, ge=0, le=360, description="Bakı (derece)")
     litho_id: int = Field(..., ge=1, le=27, description="Litoloji sınıfı (1-27)")
     pga: float = Field(..., ge=0.001, le=3.0, description="PGA (g)")
+    saturation: float = Field(0.0, ge=0.0, le=1.0, description="Su tablası oranı m (yağış senaryosu)")
 
 
 class PointResponse(BaseModel):
@@ -29,6 +30,7 @@ class CriticalRequest(BaseModel):
     pga_min: float = Field(0.05, ge=0.001, le=3.0)
     pga_max: float = Field(1.50, ge=0.05, le=3.0)
     step: float = Field(0.05, ge=0.01, le=0.5)
+    saturation: float = Field(0.0, ge=0.0, le=1.0)
 
 
 class CriticalResponse(BaseModel):
@@ -67,6 +69,8 @@ class NewmarkCurvesRequest(BaseModel):
     pga_min: float = Field(0.05, ge=0.001, le=3.0)
     pga_max: float = Field(1.50, ge=0.05, le=3.0)
     step: float = Field(0.05, ge=0.01, le=0.5)
+    saturation: float = Field(0.0, ge=0.0, le=1.0)
+
 
 
 class NewmarkCurvesResponse(BaseModel):

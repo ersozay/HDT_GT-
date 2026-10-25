@@ -101,12 +101,14 @@ class LandslideModel:
                         vals[name] = float(v)
         return vals
 
-    def _features(self, slope, elevation, aspect, litho_id, pga, z_ref, lat=None, lon=None):
+    def _features(self, slope, elevation, aspect, litho_id, pga, z_ref, lat=None, lon=None,
+                  saturation=0.0):
+        from src.geomechanics.hydrology import pore_pressure
         a = lambda v: np.array([[v]], dtype=float)
         df, _ = build_feature_matrix(
             elevation_m=a(elevation), slope_deg=a(slope), aspect_deg=a(aspect),
             litho_array=np.array([[int(litho_id)]]), pga_array=a(pga),
-            u_array=None, z_ref=z_ref, include_onehot=True,
+            u_array=a(float(pore_pressure(saturation, z_ref, slope))), z_ref=z_ref, include_onehot=True,
         )
         if self.uses_layers:
             from src.data_engineering.feature_matrix import derive_layer_features
@@ -117,10 +119,10 @@ class LandslideModel:
         return df, X
 
     def predict_point(self, *, slope, elevation, aspect, litho_id, pga, z_ref=Z_REF_M,
-                      lat=None, lon=None) -> dict:
-        """Tek yamaç için heyelan olasılığı, Ky ve Dn döndürür."""
+                      lat=None, lon=None, saturation=0.0) -> dict:
+        """Tek yamaç için heyelan olasılığı, Ky ve Dn döndürür (saturation: yağış senaryosu m)."""
         torch = self._torch
-        df, X = self._features(slope, elevation, aspect, litho_id, pga, z_ref, lat, lon)
+        df, X = self._features(slope, elevation, aspect, litho_id, pga, z_ref, lat, lon, saturation)
         Xn = (X - self._mean) / self._std
         with self._lock, torch.no_grad():
             p = float(self.model(torch.tensor(Xn, dtype=torch.float32)).numpy().ravel()[0])
@@ -136,9 +138,10 @@ class LandslideModel:
         }
 
     def critical_pga(self, *, slope, elevation, aspect=180, litho_id,
-                     pga_min=0.05, pga_max=1.50, step=0.05, z_ref=Z_REF_M) -> dict:
+                     pga_min=0.05, pga_max=1.50, step=0.05, z_ref=Z_REF_M, saturation=0.0) -> dict:
         """PGA taraması: her PGA için P(heyelan) ve kritik eşik (P≥threshold)."""
         from src.evaluation.metrics import critical_pga_from_curve
+        from src.geomechanics.hydrology import pore_pressure
         torch = self._torch
         grid = np.round(np.arange(pga_min, pga_max + 1e-9, step), 3)
         n = len(grid)
@@ -146,7 +149,8 @@ class LandslideModel:
         df, _ = build_feature_matrix(
             elevation_m=full(elevation), slope_deg=full(slope), aspect_deg=full(aspect),
             litho_array=np.full((1, n), int(litho_id)), pga_array=grid.reshape(1, n),
-            u_array=None, z_ref=z_ref, include_onehot=True,
+            u_array=np.full((1, n), float(pore_pressure(saturation, z_ref, slope))),
+            z_ref=z_ref, include_onehot=True,
         )
         if self.uses_layers:
             from src.data_engineering.feature_matrix import derive_layer_features
@@ -237,30 +241,37 @@ class LandslideModel:
             "threshold": self.threshold,
         }
 
-    def overlay_png(self) -> bytes:
+    def overlay_png(self, wet: bool = False) -> bytes | None:
         """Susceptibility rasterını renklendirilmiş şeffaf PNG'ye çevirir (cache'li)."""
+        if wet:
+            path = DATA_PROCESSED / "susceptibility_wet_20230206.tif"
+            if not path.exists():
+                return None
+            cache = self.__dict__.setdefault("_wet_cache", None)
+            if cache is None:
+                self._wet_cache = self._render_prob(path)
+            return self._wet_cache
         if self._overlay_cache is not None:
             return self._overlay_cache
+        self._overlay_cache = self._render_prob(SUSC_RASTER)
+        return self._overlay_cache
+
+    @staticmethod
+    def _render_prob(path) -> bytes:
         import rasterio
         import matplotlib
         matplotlib.use("Agg")
         from matplotlib.colors import Normalize
         from PIL import Image
-
-        with rasterio.open(SUSC_RASTER) as ds:
+        with rasterio.open(path) as ds:
             arr = ds.read(1).astype(float)
-
         mask = np.isfinite(arr)
-        norm = Normalize(vmin=0.0, vmax=1.0)
         cmap = matplotlib.colormaps["RdYlGn_r"]  # düşük=yeşil, yüksek=kırmızı
-        rgba = cmap(norm(np.nan_to_num(arr, nan=0.0)))
+        rgba = cmap(Normalize(vmin=0.0, vmax=1.0)(np.nan_to_num(arr, nan=0.0)))
         rgba[..., 3] = np.where(mask, 0.78, 0.0)  # NaN → şeffaf
-        img = (rgba * 255).astype(np.uint8)
-
         buf = io.BytesIO()
-        Image.fromarray(img, mode="RGBA").save(buf, format="PNG")
-        self._overlay_cache = buf.getvalue()
-        return self._overlay_cache
+        Image.fromarray((rgba * 255).astype(np.uint8), mode="RGBA").save(buf, format="PNG")
+        return buf.getvalue()
 
     # ------------------------------------------------------------------ #
     # Litoloji katmanı (kategorik renkli overlay + lejant)
@@ -425,14 +436,16 @@ class LandslideModel:
     # Newmark eğrileri (Jibson + Ambraseys, 10 cm eşiği)
     # ------------------------------------------------------------------ #
     def newmark_curves(self, *, slope, elevation=1000.0, aspect=180, litho_id,
-                       pga_min=0.05, pga_max=1.50, step=0.05, z_ref=Z_REF_M) -> dict:
+                       pga_min=0.05, pga_max=1.50, step=0.05, z_ref=Z_REF_M,
+                       saturation=0.0) -> dict:
         """
         Bir yamaç için aᵧ hesaplar ve PGA taramasında Jibson + Ambraseys Dₙ
         dizilerini + her biri için 10 cm kritik PGA'sını döndürür.
         """
         lith = LITHOLOGY_TABLE.get(int(litho_id), LITHOLOGY_TABLE[27])
+        from src.geomechanics.hydrology import pore_pressure
         fs = float(StaticFS(lith["c_prime"], lith["phi_prime"], lith["gamma"],
-                            z_ref, slope))
+                            z_ref, slope, float(pore_pressure(saturation, z_ref, slope))))
         ky = float(CriticalAcceleration(fs, slope))
 
         grid = np.round(np.arange(pga_min, pga_max + 1e-9, step), 3)
@@ -453,6 +466,48 @@ class LandslideModel:
             "critical_pga_ambraseys": crossing(dn_a),
             "dn_threshold_cm": DN_THRESHOLD_M * 100.0,
         }
+
+    # ------------------------------------------------------------------ #
+    # Zemin nemi (yağış senaryosu)
+    # ------------------------------------------------------------------ #
+    def moisture(self, *, lat: float, lon: float) -> dict:
+        """
+        6 Şubat 2023 doygunluğu (ERA5-Land rasterı) + bugünkü ve 3 günlük tahmin
+        (Open-Meteo forecast, ağ yoksa yalnız olay değeri).
+        """
+        from src.geomechanics.hydrology import saturation_from_moisture
+        out = {"event_2023_02_06": None, "now": None, "forecast_3d_precip_mm": None,
+               "source": "ERA5-Land (olay) · Open-Meteo tahmini (bugün)"}
+        ev = self._sample(LAYER_DIR / "saturation_20230206.tif", lon, lat, default=np.nan)
+        if np.isfinite(ev):
+            out["event_2023_02_06"] = round(float(ev), 3)
+        key = (round(lat, 2), round(lon, 2))
+        cache = self.__dict__.setdefault("_moist_cache", {})
+        import time as _t
+        if key in cache and _t.time() - cache[key][0] < 3600:
+            out.update(cache[key][1]); return out
+        try:
+            import json as _json
+            from urllib.request import urlopen
+            from urllib.parse import urlencode
+            from src.data_engineering.strong_motion import _ssl_context
+            q = urlencode({"latitude": lat, "longitude": lon, "forecast_days": 3, "timezone": "auto",
+                           "hourly": "soil_moisture_9_to_27cm,soil_moisture_27_to_81cm",
+                           "daily": "precipitation_sum"})
+            d = _json.load(urlopen(f"https://api.open-meteo.com/v1/forecast?{q}", timeout=15,
+                                   context=_ssl_context()))
+            h = d["hourly"]
+            th = (18 * np.nanmean(np.array(h["soil_moisture_9_to_27cm"][:24], float)) +
+                  54 * np.nanmean(np.array(h["soil_moisture_27_to_81cm"][:24], float))) / 72
+            th_max = np.nanmax(0.25 * np.array(h["soil_moisture_9_to_27cm"], float) +
+                               0.75 * np.array(h["soil_moisture_27_to_81cm"], float))
+            live = {"now": round(float(saturation_from_moisture(th)), 3),
+                    "forecast_3d_max": round(float(saturation_from_moisture(th_max)), 3),
+                    "forecast_3d_precip_mm": round(float(np.nansum(np.array(d["daily"]["precipitation_sum"], float))), 1)}
+            cache[key] = (_t.time(), live); out.update(live)
+        except Exception as e:
+            out["live_error"] = str(e)[:120]
+        return out
 
     # ------------------------------------------------------------------ #
     # Yardımcılar

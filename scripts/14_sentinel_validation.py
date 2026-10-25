@@ -101,7 +101,7 @@ def run_pairs(items, pre_sc, post_sc, workers, inner_r=None, label="", cell_deg=
     return df
 
 
-def run(n_neg=4000, workers=24, seed=0):
+def run(n_neg=4000, workers=24, seed=0, sample=None):
     import geopandas as gpd
     from shapely.geometry import Point
     R.mkdir(parents=True, exist_ok=True)
@@ -114,7 +114,12 @@ def run(n_neg=4000, workers=24, seed=0):
 
     inv = gpd.read_file(INVENTORY_KML)
     inv = inv[inv.geom_type.isin(["Polygon", "MultiPolygon"])].reset_index(drop=True)
-    pol = run_pairs(list(enumerate(inv.geometry)), pre_sc, post_sc, workers, label="poligon")
+    items = list(enumerate(inv.geometry))
+    if sample:
+        rs = np.random.RandomState(seed)
+        items = [items[i] for i in sorted(rs.choice(len(items), sample, replace=False))]
+        n_neg = min(n_neg, 2 * sample)
+    pol = run_pairs(items, pre_sc, post_sc, workers, label="poligon")
     pol["polygon_id"] = pol["key"].astype(int)
     pol["area_m2"] = inv.to_crs(32637).area.values[pol["polygon_id"]]
 
@@ -135,7 +140,8 @@ def run(n_neg=4000, workers=24, seed=0):
     (R / "sentinel_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False))
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     _plot_dist(pol, negm, summary)
-    _chips(inv, pol, pre_sc, post_sc)
+    if not sample:
+        _chips(inv, pol, pre_sc, post_sc)
     print(f"Süre: {time.time()-t0:.0f} s")
 
 
@@ -278,10 +284,11 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--neg", type=int, default=4000)
     ap.add_argument("--workers", type=int, default=24)
+    ap.add_argument("--sample", type=int, default=None, help="rastgele poligon örneklemi (hızlı tahmin)")
     ap.add_argument("--from-gee", default=None,
                     help="GEE CSV klasörü (gee/ndvi_change.js çıktısı) — ağdan okuma yapılmaz")
     a = ap.parse_args()
     if a.from_gee:
         run_from_gee(a.from_gee)
     else:
-        run(a.neg, a.workers)
+        run(a.neg, a.workers, sample=a.sample)

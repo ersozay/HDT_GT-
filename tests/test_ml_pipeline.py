@@ -53,13 +53,24 @@ def test_physics_path_pairs_follow_physics():
     X = df[MODEL_FEATURES].to_numpy(np.float64)
     mean, std = X.mean(0), np.where(X.std(0) < 1e-8, 1, X.std(0))
     s = PhysicsPathSampler(X, MODEL_FEATURES, mean, std)
-    Xa, Xb = s.sample(400)
+    Xa, Xb = s.sample(600)
     A, B = Xa * std + mean, Xb * std + mean
     ip, isl, iky, idn = (MODEL_FEATURES.index(c) for c in ("pga_g", "slope_deg", "ky_g", "log_dn_cm"))
     assert np.all(B[:200, ip] > A[:200, ip])                       # PGA yolu
-    assert np.all(B[200:, isl] >= A[200:, isl])                    # eğim yolu
-    assert np.all(B[200:, iky] <= A[200:, iky] + 1e-6)             # θ↑ ⇒ Ky↓
-    assert np.all(B[:, idn] >= A[:, idn] - 1e-6)                   # her iki yolda Dn↑
+    assert np.all(B[200:400, isl] >= A[200:400, isl])              # eğim yolu
+    assert np.all(B[200:, iky] <= A[200:, iky] + 1e-6)             # θ↑ ya da m↑ ⇒ Ky↓
+    assert np.allclose(B[400:, isl], A[400:, isl])                 # doygunluk yolunda eğim sabit
+    assert np.all(B[:, idn] >= A[:, idn] - 1e-6)                   # her yolda Dn↑
+
+
+def test_pore_pressure_lowers_ky():
+    from src.geomechanics.hydrology import pore_pressure
+    from src.geomechanics.mohr_coulomb import StaticFS, CriticalAcceleration
+    th = 30.0
+    ky = [float(CriticalAcceleration(StaticFS(10, 32, 19, 5, th, pore_pressure(m, 5, th)), th))
+          for m in (0.0, 0.5, 1.0)]
+    assert ky[0] > ky[1] > ky[2] >= 0.0
+    assert pore_pressure(1.0, 5, 0.0) == pytest.approx(9.81 * 5)
 
 
 def test_path_penalty_zero_when_monotone_and_positive_when_not():

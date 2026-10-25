@@ -15,6 +15,9 @@ const FIGURES = [
   { key: "training_history", label: "Eğitim Geçmişi", desc: "Kayıp, doğruluk ve fizik ceza bileşenleri" },
   { key: "confusion_matrix", label: "Karışıklık Matrisi", desc: "Mekânsal test bloklarında sınıflandırma" },
   { key: "susceptibility_map_real", label: "Duyarlılık Haritası", desc: "Bölgesel PINN v2 çıktısı" },
+  { key: "rainfall_scenario_curves", label: "Yağış senaryosu", desc: "Zemin doygunluğu m arttıkça PINN ve Newmark tetiklenme eğrileri" },
+  { key: "rainfall_maps", label: "Islak vs kuru harita", desc: "6 Şubat 2023 sabahı zemin nemiyle (ERA5-Land) duyarlılık ve fark" },
+  { key: "frequency_ratio", label: "Frekans Oranı", desc: "Kocaman ve ark. yöntemiyle FR (litoloji Macrostrat PROXY)" },
   { key: "newmark_th_pilots", label: "Kayma simülasyonu", desc: "Pilot yamaçlarda gerçek AFAD kayıtlarıyla zaman-tanım Newmark kayması" },
   { key: "newmark_th_validation", label: "Newmark: kayıt vs regresyon", desc: "Zaman-tanım Newmark ile Jibson (2007) regresyonunun heyelan/arka plan ayrımı" },
   { key: "fem_1353_plastic_strain", label: "FEM · 1353 kayma yüzeyi", desc: "FEM-SSR birikmiş plastik kayma gerinmesi" },
@@ -24,7 +27,7 @@ const FIGURES = [
 ];
 
 const ORDER = [
-  "pinn_v2_L", "gbm_mono_L", "mlp_L", "gbm_L", "rf_L", "logreg_L",
+  "pinn_v2_L", "pinn_v2_L_nolitho", "gbm_mono_L", "mlp_L", "gbm_L", "rf_L", "logreg_L",
   "pinn_v2", "gbm_mono", "pinn_v1", "mlp", "gbm", "rf", "logreg", "newmark", "pinn_v2_nophysfeat",
 ];
 const f3 = (v?: number | null) => (v == null ? "—" : v.toFixed(3));

@@ -28,17 +28,30 @@ GDAL_ENV = dict(GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR", CPL_VSIL_CURL_ALLOWED_
                 GDAL_HTTP_RETRY_DELAY="2")
 
 
-def _post(body):
+def _post(body, retries=5):
+    import time
     from urllib.request import Request, urlopen
     from .strong_motion import _ssl_context
-    req = Request(STAC, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
-    return json.load(urlopen(req, context=_ssl_context(), timeout=120))
+    last = None
+    for k in range(retries):
+        try:
+            req = Request(STAC, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+            return json.load(urlopen(req, context=_ssl_context(), timeout=120))
+        except Exception as e:        # bağlantı kopması → bekle, yeniden dene
+            last = e
+            time.sleep(3 * (k + 1))
+    raise RuntimeError(f"STAC isteği başarısız: {last}")
 
 
 def search_scenes(bbox, period: str, max_cloud: float = 5.0) -> list[dict]:
     """Dönemdeki tüm sahneler (sayfalı)."""
     body = {"collections": ["sentinel-2-l2a"], "bbox": list(bbox), "datetime": period,
-            "query": {"eo:cloud_cover": {"lt": max_cloud}}, "limit": 100}
+            "query": {"eo:cloud_cover": {"lt": max_cloud}}, "limit": 100,
+            # yanıtı küçült: yalnız gereken alanlar (fields uzantısı)
+            "fields": {"include": ["id", "geometry", "properties.grid:code", "properties.eo:cloud_cover",
+                                   "properties.datetime", "properties.proj:epsg",
+                                   "assets.red", "assets.nir", "assets.scl", "assets.visual"],
+                       "exclude": ["links"]}}
     out = []
     while True:
         d = _post(body)

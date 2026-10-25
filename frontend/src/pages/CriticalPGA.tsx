@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import SaturationControl from "../components/SaturationControl";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -39,6 +40,7 @@ export default function CriticalPGA() {
   const [slope, setSlope] = useState(35);
   const [elevation, setElevation] = useState(1200);
   const [lithoId, setLithoId] = useState(11);
+  const [sat, setSat] = useState(0);
   const [res, setRes] = useState<CriticalResult | null>(null);
   const [nm, setNm] = useState<NewmarkCurves | null>(null);
   const [loading, setLoading] = useState(false);
@@ -51,8 +53,8 @@ export default function CriticalPGA() {
     setLoading(true);
     const t = setTimeout(() => {
       Promise.all([
-        api.criticalPga({ slope, elevation, aspect: 180, litho_id: lithoId }),
-        api.newmarkCurves({ slope, elevation, aspect: 180, litho_id: lithoId }),
+        api.criticalPga({ slope, elevation, aspect: 180, litho_id: lithoId, saturation: sat }),
+        api.newmarkCurves({ slope, elevation, aspect: 180, litho_id: lithoId, saturation: sat }),
       ])
         .then(([c, n]) => {
           setRes(c);
@@ -62,7 +64,7 @@ export default function CriticalPGA() {
         .finally(() => setLoading(false));
     }, 250);
     return () => clearTimeout(t);
-  }, [slope, elevation, lithoId]);
+  }, [slope, elevation, lithoId, sat]);
 
   // Ambraseys eğrisini PGA'ya göre ara-değerleyerek ML/Jibson gridine hizala
   const ambAt = useMemo(() => {
@@ -131,6 +133,7 @@ export default function CriticalPGA() {
               </div>
               <input type="range" className="input-range" min={0} max={3000} step={50} value={elevation} onChange={(e) => setElevation(Number(e.target.value))} />
             </div>
+            <SaturationControl value={sat} onChange={setSat} />
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-600 dark:text-slate-300">Litoloji</label>
               <select

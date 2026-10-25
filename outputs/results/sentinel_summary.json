@@ -1,0 +1,26 @@
+{
+  "method": "Sentinel-2 L2A, 2022 Tem–Ağu → 2023 Tem–Ağu; iç−halka (30–150 m) değişimi; eşik = dik arka plan noktalarının %5/%95 yüzdeliği",
+  "thresholds": {
+    "rel_d_ndvi_max": -0.0458,
+    "rel_d_bright_min": 0.0515
+  },
+  "polygons": {
+    "doğrulandı": 16,
+    "sinyal_yok": 14,
+    "belirsiz": 10
+  },
+  "polygons_share_confirmed_of_usable": 0.5333,
+  "confirmed_share_by_size": {
+    "<1k": 0.75,
+    "1–5k": 0.636,
+    "5–20k": 0.455,
+    ">20k m²": 0.25
+  },
+  "negatives": {
+    "temiz": 70,
+    "olası_kaçmış": 7,
+    "belirsiz": 3
+  },
+  "negatives_contamination_rate": 0.0909,
+  "note": "Arka plan eşiği tanım gereği ~%10 yanlış pozitif içerir; kirlilik oranı bu taban değerle karşılaştırılmalıdır."
+}

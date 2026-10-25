@@ -85,3 +85,10 @@ def results_newmark_sim():
 @router.get("/results/newmark-sim/validation")
 def results_newmark_sim_validation():
     return _read_json(_RESULTS / "newmark_th_validation.json")
+
+
+
+@router.get("/results/rainfall")
+def results_rainfall():
+    """Yağış senaryosu (scripts/17)."""
+    return _read_json(_RESULTS / "rainfall_scenario.json")

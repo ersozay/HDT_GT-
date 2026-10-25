@@ -29,6 +29,8 @@ RASTER_LAYERS = {
     "dist_stream_km":  ("Dereye uzaklık", "km", "Blues", True, "DEM + pysheds"),
     "clay_pct":        ("Kil oranı (15–30 cm)", "%", "YlOrBr", False, "ISRIC SoilGrids 2.0"),
     "landcover":       ("Arazi örtüsü (ESA WorldCover 2021)", "", None, False, "ESA WorldCover"),
+    "saturation_20230206": ("Zemin doygunluğu — 6 Şubat 2023 sabahı", "S", "Blues", False, "ERA5-Land (Open-Meteo)"),
+    "precip_30d_mm":   ("Depremden önceki 30 gün yağış", "mm", "Blues", False, "ERA5-Land (Open-Meteo)"),
 }
 
 LANDCOVER_COLORS = {10: ("Ağaç", "#006400"), 20: ("Çalılık", "#ffbb22"), 30: ("Çayır", "#ffff4c"),

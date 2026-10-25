@@ -3,6 +3,10 @@
 # Kullanım: ./run_pipeline.sh            (veri hazırsa ~15 dk, Apple M-serisi CPU)
 #           ./run_pipeline.sh --prepare  (öznitelik matrisini de yeniden üretir)
 set -euo pipefail
+# Uzun adımlarda makinenin uykuya geçmesini engelle
+if command -v caffeinate >/dev/null && [[ -z "${CAFFEINATED:-}" ]]; then
+  export CAFFEINATED=1; exec caffeinate -i -s "$0" "$@"
+fi
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p outputs/logs
 
@@ -18,7 +22,7 @@ step "11 · AFAD ivme kayıtları (ESM)"
 python3 scripts/11_fetch_strong_motion.py
 step "09 · Mekânsal blok CV karşılaştırması (15 model × 5 kat)"
 python3 scripts/09_benchmark.py | tee outputs/logs/benchmark.log
-python3 scripts/09_benchmark.py --models logreg_L,rf_L,gbm_L,gbm_mono_L,mlp_L,pinn_v2_L | tee -a outputs/logs/benchmark.log
+python3 scripts/09_benchmark.py --models logreg_L,rf_L,gbm_L,gbm_mono_L,mlp_L,pinn_v2_L,pinn_v2_L_nolitho | tee -a outputs/logs/benchmark.log
 step "03 · Nihai PINN v2 + katmanlar eğitimi + SHAP + metrics.json"
 python3 scripts/03_train_pinn.py --features v3 | tee outputs/logs/train_v3.log
 step "05 · Bölgesel duyarlılık haritası"
@@ -29,6 +33,8 @@ step "02 · FEM-SSR pilot analizi"
 python3 scripts/02_run_fem.py | tee outputs/logs/fem.log
 step "13 · Poligon bazında kayma simülasyonu (zaman-tanım Newmark)"
 python3 scripts/13_newmark_simulation.py
+step "17 · Yağış senaryosu (ERA5-Land olay nemi + doygunluk taraması)"
+python3 scripts/17_rainfall_scenario.py
 step "15/16 · Frekans Oranı ve etiket kirliliği duyarlılığı"
 python3 scripts/15_frequency_ratio.py
 caffeinate -i -s python3 scripts/16_label_noise.py --budget 100000

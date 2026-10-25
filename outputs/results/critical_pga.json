@@ -1,65 +1,65 @@
 {
   "critical_pga": {
     "definition": "En dik %5 hücrede (eğim ≥ 22.3°, n=7394) 6 modelin (nihai + 5 mekânsal-CV katı) ortalama P(heyelan) eğrisinin 0.5 düzeyini geçtiği PGA",
-    "critical_pga_g": 0.616,
+    "critical_pga_g": 0.588,
     "ensemble_range_g": [
-      0.493,
-      0.75
+      0.5,
+      0.797
     ],
     "bootstrap_95ci_g": [
-      0.602,
-      0.632
+      0.576,
+      0.603
     ],
-    "onset_lr1_g": 0.093,
+    "onset_lr1_g": 0.08,
     "levels": {
       "onset_lr1": {
         "level_p": 0.2857,
-        "critical_pga_g": 0.093,
+        "critical_pga_g": 0.08,
         "ensemble_bootstrap_95ci_g": [
-          0.087,
-          0.098
+          0.074,
+          0.086
         ],
-        "median_of_models_g": 0.102,
-        "final_model_g": 0.181,
+        "median_of_models_g": 0.068,
+        "final_model_g": 0.16,
         "cv_folds_g": [
-          0.113,
-          0.047,
-          0.096,
-          0.108,
+          0.03,
+          0.043,
+          0.092,
+          0.098,
           0.02
         ],
         "model_range_g": [
           0.02,
-          0.181
+          0.16
         ],
         "final_bootstrap_95ci_g": [
-          0.171,
-          0.191
+          0.153,
+          0.169
         ]
       },
       "p05": {
         "level_p": 0.5,
-        "critical_pga_g": 0.616,
+        "critical_pga_g": 0.588,
         "ensemble_bootstrap_95ci_g": [
-          0.602,
-          0.632
+          0.576,
+          0.603
         ],
-        "median_of_models_g": 0.604,
-        "final_model_g": 0.75,
+        "median_of_models_g": 0.561,
+        "final_model_g": 0.797,
         "cv_folds_g": [
-          0.644,
-          0.573,
-          0.635,
-          0.546,
-          0.493
+          0.5,
+          0.563,
+          0.571,
+          0.559,
+          0.515
         ],
         "model_range_g": [
-          0.493,
-          0.75
+          0.5,
+          0.797
         ],
         "final_bootstrap_95ci_g": [
-          0.739,
-          0.762
+          0.786,
+          0.808
         ]
       }
     },
@@ -138,8 +138,8 @@
         "n": 33
       }
     ],
-    "spearman_binned": 0.871,
-    "spearman_binned_p": 3.011893857816272e-08,
+    "spearman_binned": 0.865,
+    "spearman_binned_p": 4.8615197967595536e-08,
     "spearman_cells": 0.133,
     "landslide_area_prevalence": 0.00047,
     "n_bins": 24,
@@ -149,27 +149,27 @@
     {
       "neg_pos_ratio": 1.0,
       "train_pos_rate": 0.501,
-      "critical_pga_at_0.5_mean": 0.448,
-      "critical_pga_at_0.5_sd": 0.091,
-      "critical_pga_onset_lr1_mean": 0.45,
-      "test_roc_auc_mean": 0.966,
+      "critical_pga_at_0.5_mean": 0.407,
+      "critical_pga_at_0.5_sd": 0.049,
+      "critical_pga_onset_lr1_mean": 0.409,
+      "test_roc_auc_mean": 0.965,
       "n_seeds": 3
     },
     {
       "neg_pos_ratio": 1.5,
       "train_pos_rate": 0.401,
-      "critical_pga_at_0.5_mean": 0.446,
-      "critical_pga_at_0.5_sd": 0.013,
-      "critical_pga_onset_lr1_mean": 0.218,
+      "critical_pga_at_0.5_mean": 0.436,
+      "critical_pga_at_0.5_sd": 0.017,
+      "critical_pga_onset_lr1_mean": 0.214,
       "test_roc_auc_mean": 0.963,
       "n_seeds": 3
     },
     {
       "neg_pos_ratio": 2.5,
       "train_pos_rate": 0.287,
-      "critical_pga_at_0.5_mean": 0.74,
-      "critical_pga_at_0.5_sd": 0.055,
-      "critical_pga_onset_lr1_mean": 0.162,
+      "critical_pga_at_0.5_mean": 0.727,
+      "critical_pga_at_0.5_sd": 0.082,
+      "critical_pga_onset_lr1_mean": 0.128,
       "test_roc_auc_mean": 0.964,
       "n_seeds": 3
     }

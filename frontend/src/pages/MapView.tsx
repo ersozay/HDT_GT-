@@ -260,6 +260,10 @@ export default function MapView() {
                   </LayersControl.Overlay>
                 )}
 
+                <LayersControl.Overlay name="Duyarlılık — 6 Şubat 2023 zemin nemiyle (yağış senaryosu)">
+                  <ImageOverlay url="/api/map/overlay_wet.png" bounds={bounds} opacity={0.8} />
+                </LayersControl.Overlay>
+
                 {/* Yağış — yalnız görsel bağlam (istek 9) */}
                 {rain?.available && (
                   <LayersControl.Overlay name="Yağış (CHIRPS · görsel)">

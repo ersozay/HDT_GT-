@@ -103,13 +103,19 @@ def load_layers(transform, w, h) -> dict:
     return out
 
 
-def stack_features(stack: RegionalStack, z_ref: float, pga_override: float | None = None):
-    """Izgara için öznitelik DataFrame'i (build_feature_matrix) döndürür."""
+def stack_features(stack: RegionalStack, z_ref: float, pga_override: float | None = None,
+                   saturation=None):
+    """
+    Izgara için öznitelik DataFrame'i. `saturation` (skaler ya da ızgara, 0–1):
+    yağış senaryosu — su tablası oranı m; u = m·γ_w·z·cos²θ (geomechanics/hydrology).
+    """
     from .feature_matrix import build_feature_matrix
+    from ..geomechanics.hydrology import pore_pressure
     pga = stack.pga if pga_override is None else np.full(stack.shape, pga_override, np.float32)
+    u = None if saturation is None else pore_pressure(np.broadcast_to(saturation, stack.shape), z_ref, stack.slope)
     df, _ = build_feature_matrix(
         elevation_m=stack.elevation, slope_deg=stack.slope, aspect_deg=stack.aspect,
-        litho_array=stack.litho, pga_array=pga, u_array=None,
+        litho_array=stack.litho, pga_array=pga, u_array=u,
         z_ref=z_ref, include_onehot=True,
     )
     if stack.layers:
